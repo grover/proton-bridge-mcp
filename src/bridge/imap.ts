@@ -1,5 +1,5 @@
 import { simpleParser } from 'mailparser';
-import type { ImapFlow, FetchMessageObject, MessageAddressObject } from 'imapflow';
+import type { ImapFlow, FetchMessageObject, MessageAddressObject, ListResponse } from 'imapflow';
 import { Audited } from './decorators.js';
 import type { AuditLogger } from './audit.js';
 import type { ImapConnectionPool } from './pool.js';
@@ -33,18 +33,20 @@ export class ImapClient {
     this.#logger = logger;
   }
 
-  @Audited('list_folders')
-  async listFolders(): Promise<FolderInfo[]> {
+  @Audited('get_folders')
+  async getFolders(): Promise<FolderInfo[]> {
     const conn = await this.#pool.acquire();
     try {
-      const mailboxes = await conn.list();
-      return mailboxes.map(mb => ({
-        path:      mb.path,
-        name:      mb.name,
-        delimiter: mb.delimiter ?? '/',
-        flags:     [...mb.flags],
-        ...(mb.specialUse ? { specialUse: mb.specialUse } : {}),
-      }));
+      const mailboxes = await conn.list({
+        statusQuery: { messages: true, unseen: true, uidNext: true },
+      });
+      return mailboxes
+        .filter(mb =>
+          mb.path !== 'Starred' &&
+          mb.path !== 'Labels' &&
+          !mb.path.startsWith('Labels/'),
+        )
+        .map(toFolderInfo);
     } finally {
       this.#pool.release(conn);
     }
@@ -404,6 +406,21 @@ export class ImapClient {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+function toFolderInfo(mb: ListResponse): FolderInfo {
+  return {
+    path:         mb.path,
+    name:         mb.name,
+    delimiter:    mb.delimiter,
+    listed:       mb.listed,
+    subscribed:   mb.subscribed,
+    flags:        [...mb.flags],
+    ...(mb.specialUse ? { specialUse: mb.specialUse } : {}),
+    messageCount: mb.status?.messages ?? 0,
+    unreadCount:  mb.status?.unseen ?? 0,
+    uidNext:      mb.status?.uidNext ?? 0,
+  };
+}
 
 function groupByMailbox(ids: EmailId[]): Map<string, EmailId[]> {
   const map = new Map<string, EmailId[]>();

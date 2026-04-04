@@ -16,7 +16,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
 ## Table of Contents
 
 - [Read Operations](#read-operations)
-  - [list_folders](#list_folders)
+  - [get_folders](#get_folders)
   - [list_mailbox](#list_mailbox)
   - [fetch_summaries](#fetch_summaries)
   - [fetch_message](#fetch_message)
@@ -36,9 +36,9 @@ All batch operations preserve input order — `result[i]` always corresponds to 
 
 ## Read Operations
 
-### `list_folders`
+### `get_folders`
 
-List all IMAP mailboxes/folders available in the ProtonMail account. Returns folder paths, names, hierarchy delimiters, and special-use flags (Sent, Drafts, Trash, etc.).
+List all mail folders with detailed metadata — message counts, unread counts, next UID, subscription status, and IMAP flags. Includes INBOX, special-use folders (Sent, Drafts, Trash, Archive, Junk, Spam), and user-created folders under `Folders/`. Proton labels, the virtual Starred mailbox, and the Labels root are excluded.
 
 | | |
 |---|---|
@@ -53,15 +53,24 @@ List all IMAP mailboxes/folders available in the ProtonMail account. Returns fol
     "path": "INBOX",              // Full hierarchy path
     "name": "INBOX",              // Leaf name
     "delimiter": "/",             // Hierarchy delimiter
+    "listed": true,               // Appeared in LIST response
+    "subscribed": true,           // Folder is subscribed
     "flags": ["\\HasNoChildren"], // IMAP folder attributes
-    "specialUse": "\\Inbox"       // RFC 6154 special-use (optional)
+    "specialUse": "\\Inbox",      // RFC 6154 special-use (optional)
+    "messageCount": 142,          // Total messages (STATUS MESSAGES)
+    "unreadCount": 3,             // Unseen messages (STATUS UNSEEN)
+    "uidNext": 1089               // Next UID to be assigned
   },
   {
     "path": "Folders/Work",
     "name": "Work",
     "delimiter": "/",
+    "listed": true,
+    "subscribed": true,
     "flags": ["\\HasNoChildren"],
-    "specialUse": null
+    "messageCount": 57,
+    "unreadCount": 0,
+    "uidNext": 412
   }
 ]
 ```

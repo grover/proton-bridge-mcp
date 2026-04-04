@@ -240,7 +240,7 @@ For **full documentation** — including input schemas, return types, and exampl
 
 | Tool | Flags | Description |
 |---|---|---|
-| `list_folders` | read-only | List all IMAP mailboxes with special-use flags (Inbox, Sent, Drafts, etc.) |
+| `get_folders` | read-only | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
 | `list_mailbox` | read-only | Browse emails in a mailbox, newest first, with pagination |
 | `fetch_summaries` | read-only | Fetch envelope data (from, to, subject, date, flags) for known email IDs |
 | `fetch_message` | read-only | Fetch full message body (text/HTML) and attachment metadata |

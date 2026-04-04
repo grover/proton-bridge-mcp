@@ -81,7 +81,7 @@ npm publish is enabled (`"publish": true`); requires `NPM` secret in GitHub repo
 
 | Milestone | Status | Notes |
 |---|---|---|
-| MVP | **Complete** | Scaffolding + IMAP pool + audit + verify + `list_folders` + idle drain timer |
+| MVP | **Complete** | Scaffolding + IMAP pool + audit + verify + `get_folders` + idle drain timer |
 | M1 | Partial | `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment` done |
 | M2 | **Complete** | STDIO default transport + MCPB packaging; OAuth (issue #7) not started |
 | M3 | Partial | `mark_read`, `mark_unread` done; star/archive/trash pending |
@@ -160,7 +160,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 
 | Tool | Purpose |
 |---|---|
-| `list_folders` | List all IMAP mailboxes/folders with special-use flags |
+| `get_folders` | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
 | `list_mailbox` | Browse emails in a mailbox, newest first (paginated) |
 | `fetch_summaries` | Envelope data for known UIDs (batch) |
 | `fetch_message` | Text/HTML body + attachment metadata (batch, no content) |

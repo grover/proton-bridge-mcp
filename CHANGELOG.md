@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Simplified the release
+- `get_folders` MCP tool replaces `list_folders` — enriched per-folder metadata (message count, unread count, UID next, listed/subscribed status) via inline STATUS query; filters out Proton labels (`Labels/`), the `Starred` virtual mailbox, and the `Labels` root
 
 ## [0.2.0] - 2026-04-04
 

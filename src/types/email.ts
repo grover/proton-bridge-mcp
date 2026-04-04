@@ -62,11 +62,16 @@ export interface AttachmentContent {
   size:        number;
 }
 
-/** IMAP mailbox/folder descriptor returned by list_folders */
+/** IMAP mailbox/folder descriptor returned by get_folders */
 export interface FolderInfo {
-  path:       string;           // full hierarchy path, e.g. "INBOX", "Folders/Work"
-  name:       string;           // leaf name, e.g. "Work"
-  delimiter:  string;           // hierarchy delimiter, usually "/"
-  flags:      string[];         // IMAP folder attributes, e.g. "\\HasNoChildren"
-  specialUse?: string;          // RFC 6154 special-use: \\Sent, \\Drafts, \\Trash, \\Junk, etc.
+  path:         string;           // full hierarchy path, e.g. "INBOX", "Folders/Work"
+  name:         string;           // leaf name, e.g. "Work"
+  delimiter:    string;           // hierarchy delimiter, usually "/"
+  listed:       boolean;          // appeared in the LIST response
+  subscribed:   boolean;          // folder is subscribed
+  flags:        string[];         // IMAP folder attributes, e.g. "\\HasNoChildren"
+  specialUse?:  string;           // RFC 6154 special-use: \\Sent, \\Drafts, \\Trash, \\Junk, etc.
+  messageCount: number;           // total messages (STATUS MESSAGES)
+  unreadCount:  number;           // unseen messages (STATUS UNSEEN)
+  uidNext:      number;           // next UID to be assigned (STATUS UIDNEXT)
 }

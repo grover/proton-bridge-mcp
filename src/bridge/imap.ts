@@ -11,6 +11,7 @@ import type {
   EmailMessage,
   AttachmentMetadata,
   AttachmentContent,
+  FolderInfo,
   MoveBatchResult,
   FlagBatchResult,
   BatchItemResult,
@@ -27,6 +28,23 @@ export class ImapClient {
     this.#pool  = pool;
     this.audit  = audit;
     this.#logger = logger;
+  }
+
+  @Audited('list_folders')
+  async listFolders(): Promise<FolderInfo[]> {
+    const conn = await this.#pool.acquire();
+    try {
+      const mailboxes = await conn.list();
+      return mailboxes.map(mb => ({
+        path:      mb.path,
+        name:      mb.name,
+        delimiter: mb.delimiter ?? '/',
+        flags:     [...mb.flags],
+        ...(mb.specialUse ? { specialUse: mb.specialUse } : {}),
+      }));
+    } finally {
+      this.#pool.release(conn);
+    }
   }
 
   @Audited('list_mailbox')

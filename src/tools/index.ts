@@ -1,3 +1,4 @@
+export * from './list-folders.js';
 export * from './list-mailbox.js';
 export * from './fetch-summaries.js';
 export * from './fetch-message.js';

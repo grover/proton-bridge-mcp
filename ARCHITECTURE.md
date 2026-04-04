@@ -35,6 +35,7 @@ HTTP Client (Claude Desktop / MCP Inspector)
 │  ImapConnectionPool  (src/bridge/pool.ts)   │
 │  ─ min/max connections (configurable)       │
 │  ─ pool version drain (no draining flag)    │
+│  ─ idle drain timer (drain-to-min + empty)  │
 │  ─ per-event structured logging             │
 │  ─ auto-replenish to min on error/drain     │
 └──────────────────┬──────────────────────────┘
@@ -86,9 +87,11 @@ Wraps the decorated method body in `this.audit.wrap(operation, firstArg, fn)`.
 - `release(conn)`: stale version → close + replenish; current version → return to pool or hand to waiter
 - `verifyConnectivity()`: opens a throwaway connection, sends NOOP, closes it
 
-**Not yet implemented (project-spec.md):**
-- Idle drain timer: drain to `min` after N seconds of inactivity
-- Full idle timeout: empty pool if server unused for 5 minutes (configurable)
+**Idle timers (setInterval, 10 s check interval):**
+- `idleDrainSecs` (default 30): closes available connections above `min` — `#drainToMin()`
+- `idleTimeoutSecs` (default 300): closes all available connections + bumps pool version — `#drainToZero()`
+- Timer is unref'd (won't prevent process exit); stopped in `stop()`
+- `#lastActivityAt` updated on every `acquire()`
 
 ### `src/bridge/imap.ts` — `ImapClient`
 All methods `@Audited`. Internal helper `#fetchByIds` groups `EmailId[]` by mailbox,
@@ -126,6 +129,8 @@ EmailSummary     id + messageId + from/to/cc/replyTo + subject + date + size + f
 AttachmentMetadata  { partId, filename?, contentType, size }
 AttachmentContent   { emailId, partId, filename?, contentType, data (base64), size }
 
+FolderInfo          { path, name, delimiter, flags: string[], specialUse? }
+
 BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
   MoveResult        { fromMailbox, toMailbox, targetId? }
   FlagResult        { flagsAfter: string[] }
@@ -135,6 +140,7 @@ BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
 
 | Tool | Input | Output | IMAP Op |
 |---|---|---|---|
+| `list_folders` | — | `FolderInfo[]` | LIST * |
 | `list_mailbox` | `mailbox`, `limit`, `offset` | `EmailSummary[]` | SELECT + FETCH seq range, reversed |
 | `fetch_summaries` | `ids: EmailId[]` | `EmailSummary[]` | UID FETCH envelope+flags |
 | `fetch_message` | `ids: EmailId[]` | `EmailMessage[]` | UID FETCH source → mailparser |
@@ -145,8 +151,6 @@ BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
 | `mark_unread` | `ids` | `FlagBatchResult` | UID STORE -FLAGS (\\Seen) |
 | `verify_connectivity` | — | `{ success, latencyMs? }` | connect + NOOP |
 | `drain_connections` | — | `{ message }` | pool.drain() |
-
-**Missing (project-spec MVP):** `list_folders` — IMAP LIST command to enumerate mailboxes.
 
 ## Batch Contract
 

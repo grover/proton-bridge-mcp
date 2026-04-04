@@ -61,3 +61,12 @@ export interface AttachmentContent {
   data:        string;   // base64-encoded binary content
   size:        number;
 }
+
+/** IMAP mailbox/folder descriptor returned by list_folders */
+export interface FolderInfo {
+  path:       string;           // full hierarchy path, e.g. "INBOX", "Folders/Work"
+  name:       string;           // leaf name, e.g. "Work"
+  delimiter:  string;           // hierarchy delimiter, usually "/"
+  flags:      string[];         // IMAP folder attributes, e.g. "\\HasNoChildren"
+  specialUse?: string;          // RFC 6154 special-use: \\Sent, \\Drafts, \\Trash, \\Junk, etc.
+}

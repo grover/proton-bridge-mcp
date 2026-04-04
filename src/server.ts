@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ImapClient }         from './bridge/imap.js';
 import type { ImapConnectionPool } from './bridge/pool.js';
 import {
+  listFoldersSchema,        handleListFolders,
   listMailboxSchema,        handleListMailbox,
   fetchSummariesSchema,     handleFetchSummaries,
   fetchMessageSchema,       handleFetchMessage,
@@ -30,6 +31,15 @@ export function createMcpServer(
     name:    'proton-bridge-mcp',
     version: '0.1.0',
   });
+
+  server.tool(
+    'list_folders',
+    'List all IMAP mailboxes/folders available in the ProtonMail account. Returns folder paths, names, hierarchy delimiters, and special-use flags (Sent, Drafts, Trash, etc.).',
+    listFoldersSchema,
+    async () => ({
+      content: [{ type: 'text', text: toText(await handleListFolders(imap)) }],
+    }),
+  );
 
   server.tool(
     'list_mailbox',

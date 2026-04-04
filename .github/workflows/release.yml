@@ -41,6 +41,7 @@ jobs:
             --exclude=dist \
             --exclude=.mcpb-staging \
             --exclude='*.mcpb' \
+            --exclude='*.tar.gz' \
             .
 
       - name: Extract changelog for this version

@@ -1,3 +1,7 @@
+# Claude Code — local machine settings (personal permissions, local overrides)
+# .claude/settings.json (without .local) CAN be committed for shared hooks/commands
+.claude/settings.local.json
+
 # Logs
 logs
 *.log

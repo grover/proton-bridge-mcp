@@ -23,7 +23,8 @@
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo 'No tests yet — add vitest and update this script' && exit 0",
     "inspector": "npm run build && bash scripts/run_inspector.sh",
-    "package": "npm run build && bash scripts/build-mcpb.sh"
+    "package": "npm run build && bash scripts/build-mcpb.sh",
+    "release": "git checkout main && git pull origin main && npx release-it"
   },
   "volta": {
     "node": "25.9.0"

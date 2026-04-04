@@ -3,6 +3,7 @@ import type { ImapClient }         from './bridge/imap.js';
 import type { ImapConnectionPool } from './bridge/pool.js';
 import {
   getFoldersSchema,         handleGetFolders,
+  createFolderSchema,       handleCreateFolder,
   listMailboxSchema,        handleListMailbox,
   fetchSummariesSchema,     handleFetchSummaries,
   fetchMessageSchema,       handleFetchMessage,
@@ -46,6 +47,18 @@ export function createMcpServer(
     },
     async () => ({
       content: [{ type: 'text', text: toText(await handleGetFolders(imap)) }],
+    }),
+  );
+
+  server.registerTool(
+    'create_folder',
+    {
+      description: "Create a new mail folder at the given path. The path must start with 'Folders/' and may include nested segments (e.g. 'Folders/Work/Projects') which are created recursively. Returns the full path and whether it was newly created or already existed.",
+      inputSchema: createFolderSchema,
+      annotations: MUTATING,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleCreateFolder(args, imap)) }],
     }),
   );
 

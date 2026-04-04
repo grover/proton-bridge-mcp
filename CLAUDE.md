@@ -11,10 +11,11 @@ See [project-spec.md](project-spec.md) for milestone roadmap. See [ARCHITECTURE.
 ## Pre-commit Checklist
 
 Before every commit:
-1. `npm install` — regenerate `package-lock.json` if `package.json` changed; always run to ensure lockfile is in sync
-2. `npm run lint` — must pass with zero errors
-3. `npm run build` — must compile clean
-4. `npm ci` — verify the lockfile is in sync (catches the case where `package.json` was edited without running `npm install`)
+1. `git fetch origin && git rebase origin/main` — keep the branch current before committing
+2. `npm install` — regenerate `package-lock.json` if `package.json` changed; always run to ensure lockfile is in sync
+3. `npm run lint` — must pass with zero errors
+4. `npm run build` — must compile clean
+5. `npm ci` — verify the lockfile is in sync (catches the case where `package.json` was edited without running `npm install`)
 
 CI runs `npm ci`, which fails if `package-lock.json` is out of sync with `package.json`.
 

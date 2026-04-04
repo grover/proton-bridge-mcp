@@ -13,11 +13,17 @@ export interface ConnectionPoolConfig {
   max: number;
 }
 
+export interface McpHttpTlsConfig {
+  cert: string;  // PEM certificate
+  key:  string;  // PEM private key
+}
+
 export interface McpHttpConfig {
   host:      string;
   port:      number;
   basePath:  string;
   authToken: string;
+  tls?:      McpHttpTlsConfig;  // present = HTTPS; absent = plain HTTP
 }
 
 export interface LogConfig {

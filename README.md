@@ -544,7 +544,11 @@ PRs are reviewed and merged by the maintainer. This is a side project — respon
 
 ### Releases
 
-Releases are managed with [release-it](https://github.com/release-it/release-it). Maintainers run `npx release-it` locally, which bumps the version, updates the changelog, and pushes a tag. CI then creates the GitHub Release automatically.
+Releases are managed with [release-it](https://github.com/release-it/release-it). Maintainers run `npx release-it` locally, which bumps the version, updates the changelog, and pushes a tag. CI then creates the GitHub Release automatically with:
+
+- **`proton-bridge-mcp.mcpb`** — ready-to-install Claude Desktop package
+- **`proton-bridge-mcp-X.Y.Z-source.tar.gz`** — source archive
+- **npm** — the package is published to [npm](https://www.npmjs.com/package/proton-bridge-mcp) (`npm install -g proton-bridge-mcp`)
 
 ---
 

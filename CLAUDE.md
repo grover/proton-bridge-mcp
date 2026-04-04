@@ -8,6 +8,16 @@
 MCP server bridging ProtonMail via the local Proton Bridge IMAP daemon (`127.0.0.1:1143` by default).
 See [project-spec.md](project-spec.md) for milestone roadmap. See [ARCHITECTURE.md](ARCHITECTURE.md) for design detail.
 
+## Pre-commit Checklist
+
+Before every commit:
+1. `npm install` — regenerate `package-lock.json` if `package.json` changed; always run to ensure lockfile is in sync
+2. `npm run lint` — must pass with zero errors
+3. `npm run build` — must compile clean
+4. `npm ci` — verify the lockfile is in sync (catches the case where `package.json` was edited without running `npm install`)
+
+CI runs `npm ci`, which fails if `package-lock.json` is out of sync with `package.json`.
+
 ## Build & Run
 
 ```bash

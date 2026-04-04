@@ -62,10 +62,15 @@ Required status checks to configure in GitHub branch protection: **Lint**, **Bui
    - Moves `[Unreleased]` → `[x.y.z]` in `CHANGELOG.md`
    - Bumps `package.json` version
    - Commits `chore: release vX.Y.Z` and pushes tag
-3. `release.yml` fires on the tag → extracts the changelog section via `awk` → creates GitHub Release
+3. `release.yml` fires on the tag → builds → creates GitHub Release with:
+   - `proton-bridge-mcp.mcpb` — Claude Desktop package
+   - `proton-bridge-mcp-X.Y.Z-source.tar.gz` — source archive (excludes `node_modules`, `.git`, `dist`)
+   - Changelog section extracted via `awk`
+4. Same workflow publishes to npm (`npm publish --access public`)
 
 `github.release: false` in `.release-it.json` — GitHub Release is always created by CI, never from a local machine.
-To enable npm publish: set `"publish": true` in `.release-it.json` and add `NPM_TOKEN` to GitHub Secrets.
+npm publish is enabled (`"publish": true`); requires `NPM` secret in GitHub repo settings.
+`package.json` `files` field limits the npm tarball to `dist/`, `manifest.json`, `CHANGELOG.md`, and `LICENSE`.
 
 ### Node version pinning
 - `.nvmrc`: `25.9.0` — nvm/mise/asdf local dev

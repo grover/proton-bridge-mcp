@@ -11,7 +11,7 @@
     "release": false
   },
   "npm": {
-    "publish": false
+    "publish": true
   },
   "plugins": {
     "@release-it/keep-a-changelog": {

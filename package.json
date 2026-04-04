@@ -10,6 +10,12 @@
   "bin": {
     "proton-bridge-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "manifest.json",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "dev": "tsx watch src/index.ts",

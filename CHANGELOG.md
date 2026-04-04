@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Release workflow attaches `proton-bridge-mcp.mcpb` and source archive (`proton-bridge-mcp-X.Y.Z-source.tar.gz`) to GitHub Releases
+- npm publish on release via `NPM_TOKEN` secret; `package.json` `files` field limits tarball to `dist/`, `manifest.json`, `CHANGELOG.md`, and `LICENSE`
 - GitHub Actions CI workflow (`.github/workflows/ci.yml`): parallel Lint, Build, Test jobs with concurrency cancellation and npm caching
 - GitHub Actions release workflow (`.github/workflows/release.yml`): triggered on version tag push, extracts changelog section, creates GitHub Release
 - `release-it` + `@release-it/keep-a-changelog` for local release automation (bumps version, rewrites `CHANGELOG.md`, pushes tag)

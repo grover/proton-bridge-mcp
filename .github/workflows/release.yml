@@ -13,7 +13,7 @@ env:
 
 jobs:
   release:
-    name: Create GitHub Release
+    name: Create GitHub Release & Publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,9 +24,24 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          registry-url: "https://registry.npmjs.org"
 
       - run: npm ci
       - run: npm run build
+
+      - name: Build MCPB package
+        run: bash scripts/build-mcpb.sh
+
+      - name: Create source archive
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          tar czf "proton-bridge-mcp-${VERSION}-source.tar.gz" \
+            --exclude=node_modules \
+            --exclude=.git \
+            --exclude=dist \
+            --exclude=.mcpb-staging \
+            --exclude='*.mcpb' \
+            .
 
       - name: Extract changelog for this version
         run: |
@@ -39,3 +54,11 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: release-notes.txt
+          files: |
+            proton-bridge-mcp.mcpb
+            proton-bridge-mcp-*-source.tar.gz
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM }}

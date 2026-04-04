@@ -246,17 +246,16 @@ export class ImapClient {
     // Group by source mailbox
     const groups = groupByMailbox(ids);
 
-    for (const [mailbox, mailboxIds] of groups) {
+    for (const { mailbox, entries } of groups) {
       const conn = await this.#pool.acquire();
       const lock = await conn.getMailboxLock(mailbox);
       try {
-        for (const id of mailboxIds) {
-          const idx = ids.indexOf(id);
+        for (const { index, id } of entries) {
           try {
             const moved = await conn.messageMove(String(id.uid), targetMailbox, { uid: true });
             // moved.uidMap is Map<number,number>; false means the server gave no COPYUID response
             const targetUid = moved !== false ? moved.uidMap?.get(id.uid) : undefined;
-            results[idx] = {
+            results[index] = {
               id,
               data: {
                 fromMailbox: mailbox,
@@ -265,7 +264,7 @@ export class ImapClient {
               },
             };
           } catch (err) {
-            results[idx] = {
+            results[index] = {
               id,
               error: { code: 'MOVE_FAILED', message: err instanceof Error ? err.message : String(err) },
             };
@@ -285,12 +284,11 @@ export class ImapClient {
     const results: Array<BatchItemResult<FlagResult>> = ids.map(id => ({ id }));
     const groups = groupByMailbox(ids);
 
-    for (const [mailbox, mailboxIds] of groups) {
+    for (const { mailbox, entries } of groups) {
       const conn = await this.#pool.acquire();
       const lock = await conn.getMailboxLock(mailbox);
       try {
-        for (const id of mailboxIds) {
-          const idx = ids.indexOf(id);
+        for (const { index, id } of entries) {
           try {
             if (add) {
               await conn.messageFlagsAdd(String(id.uid), [flag], { uid: true });
@@ -302,9 +300,9 @@ export class ImapClient {
             for await (const msg of conn.fetch(String(id.uid), { uid: true, flags: true }, { uid: true })) {
               flagsAfter.push(...(msg.flags ? [...msg.flags] : []));
             }
-            results[idx] = { id, data: { flagsAfter } };
+            results[index] = { id, data: { flagsAfter } };
           } catch (err) {
-            results[idx] = {
+            results[index] = {
               id,
               error: { code: 'FLAG_FAILED', message: err instanceof Error ? err.message : String(err) },
             };
@@ -327,11 +325,10 @@ export class ImapClient {
 
     const conn = await this.#pool.acquire();
     try {
-      for (const [mailbox, mailboxIds] of groups) {
+      for (const { mailbox, entries } of groups) {
         const lock = await conn.getMailboxLock(mailbox);
         try {
-          for (const id of mailboxIds) {
-            const idx = ids.indexOf(id);
+          for (const { index, id } of entries) {
             const labelResults: AddLabelsItemData[] = [];
             let itemError: BatchItemError | undefined;
 
@@ -350,9 +347,9 @@ export class ImapClient {
             }
 
             if (itemError) {
-              items[idx] = { id, error: itemError };
+              items[index] = { id, error: itemError };
             } else {
-              items[idx] = { id, data: labelResults };
+              items[index] = { id, data: labelResults };
             }
           }
         } finally {
@@ -374,7 +371,10 @@ export class ImapClient {
     const groups  = groupByMailbox(ids);
     const byUid   = new Map<string, T>(); // "mailbox:uid" → result
 
-    for (const [mailbox, mailboxIds] of groups) {
+    for (const { mailbox, entries } of groups) {
+      // Index is unused here: the byUid Map + final ids.map() reorders results,
+      // unlike moveEmails/setFlag/addLabels which write directly to results[index].
+      const mailboxIds = entries.map(e => e.id);
       const conn = await this.#pool.acquire();
       const lock = await conn.getMailboxLock(mailbox);
       try {
@@ -412,17 +412,30 @@ function toFolderInfo(mb: ListResponse): FolderInfo {
   };
 }
 
-function groupByMailbox(ids: EmailId[]): Map<string, EmailId[]> {
-  const map = new Map<string, EmailId[]>();
-  for (const id of ids) {
-    const group = map.get(id.mailbox);
-    if (group) {
-      group.push(id);
+interface MailboxGroupEntry {
+  index: number;
+  id:    EmailId;
+}
+
+interface MailboxGroup {
+  mailbox: string;
+  entries: MailboxGroupEntry[];
+}
+
+function groupByMailbox(ids: EmailId[]): MailboxGroup[] {
+  const groups: MailboxGroup[] = [];
+  const groupIndexByMailbox = new Map<string, number>();
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i]!;
+    const groupIdx = groupIndexByMailbox.get(id.mailbox);
+    if (groupIdx !== undefined) {
+      groups[groupIdx]!.entries.push({ index: i, id });
     } else {
-      map.set(id.mailbox, [id]);
+      groupIndexByMailbox.set(id.mailbox, groups.length);
+      groups.push({ mailbox: id.mailbox, entries: [{ index: i, id }] });
     }
   }
-  return map;
+  return groups;
 }
 
 function toEmailAddress(addr: MessageAddressObject): EmailAddress {

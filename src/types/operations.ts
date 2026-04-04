@@ -1,5 +1,11 @@
 import type { EmailId } from './email.js';
 
+/** Shared error shape for per-item batch failures. */
+export interface BatchItemError {
+  code:    string;
+  message: string;
+}
+
 /**
  * Per-item result for batch mutating operations.
  * Index-stable: result[i] always corresponds to input[i].
@@ -7,7 +13,7 @@ import type { EmailId } from './email.js';
 export interface BatchItemResult<T> {
   id:     EmailId;
   data?:  T;
-  error?: { code: string; message: string };
+  error?: BatchItemError;
 }
 
 /** Result of a single email move */
@@ -35,7 +41,7 @@ export interface AddLabelsItemData {
 export interface AddLabelsItem {
   id:     EmailId;
   data?:  AddLabelsItemData[];
-  error?: { code: string; message: string };
+  error?: BatchItemError;
 }
 
 /** Batch result for add_labels */

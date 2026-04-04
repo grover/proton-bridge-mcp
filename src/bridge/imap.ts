@@ -17,6 +17,7 @@ import type {
   MoveBatchResult,
   FlagBatchResult,
   BatchItemResult,
+  BatchItemError,
   MoveResult,
   FlagResult,
   AddLabelsBatchResult,
@@ -320,78 +321,46 @@ export class ImapClient {
 
   @Audited('add_labels')
   async addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult> {
-    // Prepend "Labels/" to each label name
     const labelPaths = labelNames.map(name => `Labels/${name}`);
-
-    // Validate that all label paths exist
-    const conn0 = await this.#pool.acquire();
-    let existingPaths: Set<string>;
-    try {
-      const mailboxes = await conn0.list();
-      existingPaths = new Set(mailboxes.map(mb => mb.path));
-    } finally {
-      this.#pool.release(conn0);
-    }
-
-    const missingLabels = labelPaths.filter(lp => !existingPaths.has(lp));
-
-    // Initialise results array preserving input order
     const items: AddLabelsItem[] = ids.map(id => ({ id }));
-
-    // If all labels are missing, short-circuit with per-item errors
-    if (missingLabels.length === labelPaths.length) {
-      for (let i = 0; i < ids.length; i++) {
-        const id = ids[i]!;
-        items[i] = {
-          id,
-          error: { code: 'LABEL_NOT_FOUND', message: `Labels not found: ${missingLabels.join(', ')}` },
-        };
-      }
-      return { items };
-    }
-
-    const validLabelPaths = labelPaths.filter(lp => existingPaths.has(lp));
     const groups = groupByMailbox(ids);
 
-    for (const [mailbox, mailboxIds] of groups) {
-      const conn = await this.#pool.acquire();
-      const lock = await conn.getMailboxLock(mailbox);
-      try {
-        for (const id of mailboxIds) {
-          const idx = ids.indexOf(id);
-          const labelResults: AddLabelsItemData[] = [];
-          let itemError: { code: string; message: string } | undefined;
+    const conn = await this.#pool.acquire();
+    try {
+      for (const [mailbox, mailboxIds] of groups) {
+        const lock = await conn.getMailboxLock(mailbox);
+        try {
+          for (const id of mailboxIds) {
+            const idx = ids.indexOf(id);
+            const labelResults: AddLabelsItemData[] = [];
+            let itemError: BatchItemError | undefined;
 
-          // Report missing labels
-          for (const lp of missingLabels) {
-            labelResults.push({ labelPath: lp });
-          }
+            for (const labelPath of labelPaths) {
+              try {
+                const copied = await conn.messageCopy(String(id.uid), labelPath, { uid: true });
+                const targetUid = copied !== false ? copied.uidMap?.get(id.uid) : undefined;
+                labelResults.push({
+                  labelPath,
+                  ...(targetUid ? { newId: { uid: targetUid, mailbox: labelPath } } : {}),
+                });
+              } catch (err) {
+                itemError = { code: 'COPY_FAILED', message: err instanceof Error ? err.message : String(err) };
+                break;
+              }
+            }
 
-          // Copy to each valid label folder
-          for (const labelPath of validLabelPaths) {
-            try {
-              const copied = await conn.messageCopy(String(id.uid), labelPath, { uid: true });
-              const targetUid = copied !== false ? copied.uidMap?.get(id.uid) : undefined;
-              labelResults.push({
-                labelPath,
-                ...(targetUid ? { newId: { uid: targetUid, mailbox: labelPath } } : {}),
-              });
-            } catch (err) {
-              itemError = { code: 'COPY_FAILED', message: err instanceof Error ? err.message : String(err) };
-              break;
+            if (itemError) {
+              items[idx] = { id, error: itemError };
+            } else {
+              items[idx] = { id, data: labelResults };
             }
           }
-
-          if (itemError) {
-            items[idx] = { id, error: itemError };
-          } else {
-            items[idx] = { id, data: labelResults };
-          }
+        } finally {
+          lock.release();
         }
-      } finally {
-        lock.release();
-        this.#pool.release(conn);
       }
+    } finally {
+      this.#pool.release(conn);
     }
 
     return { items };

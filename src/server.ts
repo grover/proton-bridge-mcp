@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ImapClient }         from './bridge/imap.js';
 import type { ImapConnectionPool } from './bridge/pool.js';
 import {
-  listFoldersSchema,        handleListFolders,
+  getFoldersSchema,         handleGetFolders,
   listMailboxSchema,        handleListMailbox,
   fetchSummariesSchema,     handleFetchSummaries,
   fetchMessageSchema,       handleFetchMessage,
@@ -38,14 +38,14 @@ export function createMcpServer(
   });
 
   server.registerTool(
-    'list_folders',
+    'get_folders',
     {
-      description: 'List all IMAP mailboxes/folders available in the ProtonMail account. Returns folder paths, names, hierarchy delimiters, and special-use flags (Sent, Drafts, Trash, etc.).',
-      inputSchema: listFoldersSchema,
+      description: 'List all mail folders with detailed metadata — message counts, unread counts, next UID, subscription status, and IMAP flags. Includes INBOX, special-use folders (Sent, Drafts, Trash, Archive, Junk, Spam), and user-created folders under Folders/. Proton labels, the virtual Starred mailbox, and the Labels root are excluded.',
+      inputSchema: getFoldersSchema,
       annotations: READ_ONLY,
     },
     async () => ({
-      content: [{ type: 'text', text: toText(await handleListFolders(imap)) }],
+      content: [{ type: 'text', text: toText(await handleGetFolders(imap)) }],
     }),
   );
 

@@ -129,7 +129,7 @@ EmailSummary     id + messageId + from/to/cc/replyTo + subject + date + size + f
 AttachmentMetadata  { partId, filename?, contentType, size }
 AttachmentContent   { emailId, partId, filename?, contentType, data (base64), size }
 
-FolderInfo          { path, name, delimiter, flags: string[], specialUse? }
+FolderInfo          { path, name, delimiter, listed, subscribed, flags: string[], specialUse?, messageCount, unreadCount, uidNext }
 
 BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
   MoveResult        { fromMailbox, toMailbox, targetId? }
@@ -144,7 +144,7 @@ AddLabelsBatchResult  { items: AddLabelsItem[] }
 
 | Tool | Input | Output | IMAP Op |
 |---|---|---|---|
-| `list_folders` | — | `FolderInfo[]` | LIST * |
+| `get_folders` | — | `FolderInfo[]` | LIST * + STATUS (messages, unseen, uidNext) |
 | `list_mailbox` | `mailbox`, `limit`, `offset` | `EmailSummary[]` | SELECT + FETCH seq range, reversed |
 | `fetch_summaries` | `ids: EmailId[]` | `EmailSummary[]` | UID FETCH envelope+flags |
 | `fetch_message` | `ids: EmailId[]` | `EmailMessage[]` | UID FETCH source → mailparser |

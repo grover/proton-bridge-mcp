@@ -43,5 +43,11 @@ export interface AddLabelsBatchResult {
   items: AddLabelsItem[];
 }
 
+/** Result of a folder creation */
+export interface CreateFolderResult {
+  path:    string;
+  created: boolean;
+}
+
 export type MoveBatchResult = BatchItemResult<MoveResult>[];
 export type FlagBatchResult = BatchItemResult<FlagResult>[];

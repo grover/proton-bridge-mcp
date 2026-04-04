@@ -161,6 +161,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 | Tool | Purpose |
 |---|---|
 | `get_folders` | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
+| `create_folder` | Create a new mail folder under `Folders/` (recursive) |
 | `list_mailbox` | Browse emails in a mailbox, newest first (paginated) |
 | `fetch_summaries` | Envelope data for known UIDs (batch) |
 | `fetch_message` | Text/HTML body + attachment metadata (batch, no content) |

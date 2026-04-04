@@ -13,7 +13,7 @@ of `delete_folder`, which clears the log.
 
 | Topic | Decision |
 |---|---|
-| Folder name shape | Multi-segment names allowed (e.g. `Work/Projects`). Optional `parent` param, defaults to `Folders/`; must be rooted in `Folders/`. |
+| Folder path shape | Single `path` parameter (must start with `Folders/`). Multi-segment paths allowed (e.g. `Folders/Work/Projects`). IMAP CREATE handles recursive creation. |
 | IMAP CREATE API | Confirmed: `conn.mailboxCreate(path)` → `{ path, created: boolean }` |
 | IMAP DELETE API | Confirmed: `conn.mailboxDelete(path)` → `{ path }` |
 | `delete_folder` | Clears the operation log via new `@Irreversible` decorator. NOT @Tracked. |
@@ -109,37 +109,37 @@ Array<{
 
 ## Issue 2 — `M3: create_folder — create a custom mail folder`
 
-**Goal:** Create user-defined mail folders, supporting nested paths and a configurable parent.
+**Goal:** Create user-defined mail folders, supporting nested paths.
 
 ### Tool specification
 
 **Name:** `create_folder`
 
 **Description:**
-> Create a new mail folder. The name may include path separators for nesting (e.g.
-> 'Work/Projects'). The optional parent defaults to 'Folders/' and must itself be rooted in
-> Folders/. Returns the full path of the created folder and whether it was newly created or
-> already existed.
+> Create a new mail folder. The path must start with 'Folders/' and include at least one
+> folder name segment (e.g. 'Folders/Work' or 'Folders/Work/Projects'). Nested paths are
+> created recursively by IMAP CREATE. Returns the full path and whether it was newly created
+> or already existed.
 
 **Parameters:**
 ```typescript
 {
-  name:    string;  // Required. Folder name; may contain "/" for nesting.
-  parent?: string;  // Optional. Default: "Folders/". Must start with "Folders/".
+  path: string;  // Required. Full folder path, must start with "Folders/".
+                 // Nested segments (e.g. "Folders/Work/Projects") created recursively.
 }
 ```
 
 **Return:**
 ```typescript
 {
-  operationId: number;  // For use with revert_operations
-  path:        string;  // Full path, e.g. "Folders/Work/Projects"
-  created:     boolean; // true = newly created; false = already existed (no error)
+  path:    string;  // Full path, e.g. "Folders/Work/Projects"
+  created: boolean; // true = newly created; false = already existed (no error)
 }
 ```
+_(Note: `operationId` will be added when the operation log interceptor is implemented in Issue 9.)_
 
 **Error conditions:**
-- `FORBIDDEN` — `parent` does not start with `"Folders/"`, or resolves to a protected path
+- `INVALID_PATH` — path does not start with `"Folders/"`, is bare `"Folders/"`, or has no folder name after the prefix
 - IMAP failure → top-level thrown error
 
 ### imapflow API
@@ -148,8 +148,8 @@ Array<{
 
 ### Implementation steps
 
-1. Add `src/tools/create-folder.ts` with Zod schema as above. Validate `parent` in handler.
-   Construct path: `parent.replace(/\/$/, '') + '/' + name`.
+1. Add `src/tools/create-folder.ts` with Zod schema for `path`. Validate path starts with
+   `Folders/` and contains a folder name after the prefix.
 2. Add `ImapClient.createFolder(path: string): Promise<CreateFolderResult>` with `@Audited('create_folder')`.
 3. On `OperationLogInterceptor`: wrap `createFolder` with `@Tracked`, reversal
    `{ type: 'create_folder', path }`. Revert = `deleteFolder(path)`.
@@ -159,10 +159,10 @@ Array<{
 
 ### Acceptance criteria
 
-- `{ name: "Work" }` → `Folders/Work` appears in `get_folders`.
-- `{ name: "Work/Projects" }` → `Folders/Work/Projects` appears.
-- `{ name: "Deep", parent: "Folders/Work" }` → `Folders/Work/Deep` appears.
-- `parent: "INBOX"` → `FORBIDDEN`.
+- `{ path: "Folders/Work" }` → `Folders/Work` appears in `get_folders`.
+- `{ path: "Folders/Work/Projects" }` → `Folders/Work/Projects` appears (recursive creation).
+- `{ path: "Folders/" }` → `INVALID_PATH`.
+- `{ path: "INBOX" }` → `INVALID_PATH`.
 - Pre-existing path → `{ created: false }`, no error.
 
 ---

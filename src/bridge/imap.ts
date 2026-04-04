@@ -1,5 +1,6 @@
 import { simpleParser } from 'mailparser';
 import type { ImapFlow, FetchMessageObject, MessageAddressObject, ListResponse } from 'imapflow';
+import { isAlreadyExistsError } from './errors.js';
 import { Audited } from './decorators.js';
 import type { AuditLogger } from './audit.js';
 import type { ImapConnectionPool } from './pool.js';
@@ -12,6 +13,7 @@ import type {
   AttachmentMetadata,
   AttachmentContent,
   FolderInfo,
+  CreateFolderResult,
   MoveBatchResult,
   FlagBatchResult,
   BatchItemResult,
@@ -47,6 +49,25 @@ export class ImapClient {
           !mb.path.startsWith('Labels/'),
         )
         .map(toFolderInfo);
+    } finally {
+      this.#pool.release(conn);
+    }
+  }
+
+  @Audited('create_folder')
+  async createFolder(path: string): Promise<CreateFolderResult> {
+    const conn = await this.#pool.acquire();
+    try {
+      const result = await conn.mailboxCreate(path);
+      return {
+        path:    result.path,
+        created: result.created,
+      };
+    } catch (err: unknown) {
+      if (isAlreadyExistsError(err)) {
+        return { path, created: false };
+      }
+      throw err;
     } finally {
       this.#pool.release(conn);
     }

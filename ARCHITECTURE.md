@@ -19,7 +19,7 @@ HTTP Client (Claude Desktop / MCP Inspector)
 ┌──────────────────▼──────────────────────────┐
 │  McpServer  (src/server.ts)                 │
 │  createMcpServer(imap, pool)                │
-│  ─ 12 registered tools                      │
+│  ─ 13 registered tools                      │
 │  ─ created fresh per HTTP session           │
 │  ─ imap + pool are shared singletons        │
 └──────────────────┬──────────────────────────┘
@@ -110,7 +110,7 @@ Sessions keyed by `mcp-session-id` header. `reply.hijack()` before passing to tr
 `server.connect(transport)` requires a cast due to MCP SDK `exactOptionalPropertyTypes` mismatch on `onclose`.
 
 ### `src/server.ts` — `createMcpServer(imap, pool)`
-Registers 12 tools. Called once per HTTP session. Tool handler pattern:
+Registers 13 tools. Called once per HTTP session. Tool handler pattern:
 ```typescript
 server.tool(name, description, zodRawShape, async (args) => ({
   content: [{ type: 'text', text: JSON.stringify(await handler(args, imap)) }],
@@ -130,6 +130,7 @@ AttachmentMetadata  { partId, filename?, contentType, size }
 AttachmentContent   { emailId, partId, filename?, contentType, data (base64), size }
 
 FolderInfo          { path, name, delimiter, listed, subscribed, flags: string[], specialUse?, messageCount, unreadCount, uidNext }
+CreateFolderResult  { path, created }
 
 BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
   MoveResult        { fromMailbox, toMailbox, targetId? }
@@ -145,6 +146,7 @@ AddLabelsBatchResult  { items: AddLabelsItem[] }
 | Tool | Input | Output | IMAP Op |
 |---|---|---|---|
 | `get_folders` | — | `FolderInfo[]` | LIST * + STATUS (messages, unseen, uidNext) |
+| `create_folder` | `path` | `CreateFolderResult` | CREATE mailbox |
 | `list_mailbox` | `mailbox`, `limit`, `offset` | `EmailSummary[]` | SELECT + FETCH seq range, reversed |
 | `fetch_summaries` | `ids: EmailId[]` | `EmailSummary[]` | UID FETCH envelope+flags |
 | `fetch_message` | `ids: EmailId[]` | `EmailMessage[]` | UID FETCH source → mailparser |

@@ -23,6 +23,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
   - [fetch_attachment](#fetch_attachment)
   - [search_mailbox](#search_mailbox)
 - [Write Operations](#write-operations)
+  - [create_folder](#create_folder)
   - [move_emails](#move_emails)
   - [mark_read](#mark_read)
   - [mark_unread](#mark_unread)
@@ -203,6 +204,35 @@ Search for emails in a mailbox by text query. Uses IMAP `TEXT` search, which mat
 ---
 
 ## Write Operations
+
+### `create_folder`
+
+Create a new mail folder under `Folders/`. Supports nested paths — intermediate folders are created recursively by IMAP CREATE. If the folder already exists, returns `created: false` without error.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` | Full folder path (must start with `"Folders/"`). Nested segments (e.g. `"Folders/Work/Projects"`) are created recursively. |
+
+**Returns:** `CreateFolderResult`
+
+```jsonc
+{
+  "path": "Folders/Work/Projects",   // Full IMAP path of the folder
+  "created": true                    // true = newly created; false = already existed
+}
+```
+
+**Error conditions:**
+- `INVALID_PATH` — path does not start with `"Folders/"`, is bare `"Folders/"`, or is empty after stripping trailing slashes
+- IMAP failure -> top-level thrown error
+
+---
 
 ### `move_emails`
 

@@ -1,4 +1,5 @@
 export * from './get-folders.js';
+export * from './create-folder.js';
 export * from './list-mailbox.js';
 export * from './fetch-summaries.js';
 export * from './fetch-message.js';

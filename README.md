@@ -42,7 +42,7 @@ An [MCP](https://modelcontextprotocol.io/) server that bridges ProtonMail to AI 
 
 ## Features
 
-- **12 MCP tools** for reading, searching, and organizing email
+- **13 MCP tools** for reading, searching, and organizing email
 - **Three transport modes** — STDIO, HTTP, and HTTPS
 - **IMAP connection pooling** with configurable min/max connections and idle drain timers
 - **Batch operations** with input-order stability and per-item error reporting
@@ -234,13 +234,14 @@ All environment variables use the `PROTONMAIL_` prefix. You can set them in a `.
 
 ## MCP Tools
 
-The server exposes 12 tools that MCP clients can call. Each tool is annotated with `readOnlyHint` or `destructiveHint` so clients can present appropriate confirmation prompts.
+The server exposes 13 tools that MCP clients can call. Each tool is annotated with `readOnlyHint` or `destructiveHint` so clients can present appropriate confirmation prompts.
 
 For **full documentation** — including input schemas, return types, and example JSON — see the **[Tools Reference](docs/tools/README.md)**.
 
 | Tool | Flags | Description |
 |---|---|---|
 | `get_folders` | read-only | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
+| `create_folder` | mutating | Create a new mail folder under `Folders/` (supports nested paths) |
 | `list_mailbox` | read-only | Browse emails in a mailbox, newest first, with pagination |
 | `fetch_summaries` | read-only | Fetch envelope data (from, to, subject, date, flags) for known email IDs |
 | `fetch_message` | read-only | Fetch full message body (text/HTML) and attachment metadata |

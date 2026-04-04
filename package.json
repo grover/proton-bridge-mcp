@@ -1,6 +1,6 @@
 {
   "name": "proton-bridge-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server bridging ProtonMail via Proton Bridge IMAP",
   "type": "module",
   "main": "./dist/index.js",

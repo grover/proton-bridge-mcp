@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-04
+
 ### Added
 
 - Release workflow attaches `proton-bridge-mcp.mcpb` and source archive (`proton-bridge-mcp-X.Y.Z-source.tar.gz`) to GitHub Releases
@@ -52,3 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0]
 
 Unreleased.
+
+[unreleased]: https://github.com/grover/proton-bridge-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/grover/proton-bridge-mcp/releases/tag/v0.2.0

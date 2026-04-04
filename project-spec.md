@@ -60,8 +60,50 @@ We'll work iteratively to create the MCP server:
 
 ### M3
 
-* Claude can move emails
-* A revert tool enables Claude to reverse any action it's done (limited to the past 100 actions taken.)
+See [M3 PRD](docs/plans/m3-folders-labels-revert.md) for full tool specifications, implementation steps, and acceptance criteria.
+
+#### Folder management
+
+* `get_folders` replaces `list_folders` with an enriched schema and filtering rules.
+  - Included: special-use folders (INBOX, Sent, Drafts, Trash, Junk, Archive, Spam) and all
+    paths under `Folders/`.
+  - Excluded: `Labels/` prefix, and the virtual roots `Starred` and `Labels`.
+  - Schema per folder: `path`, `name`, `delimiter`, `listed`, `subscribed`, `flags`,
+    `specialUse?`, `messageCount`, `unreadCount`, `uidNext`.
+* `create_folder` — creates a new user folder. Accepts a `name` (may contain `/` for nested
+  paths) and an optional `parent` (defaults to `Folders/`; must be rooted in `Folders/`).
+  Full path = `parent + "/" + name`. Uses `conn.mailboxCreate(path)`. Revertable.
+* `delete_folder` — deletes a folder under `Folders/` (cannot delete `Folders/` itself,
+  special-use folders, or paths outside `Folders/`). Uses `conn.mailboxDelete(path)`.
+  **Empties the operation log** via the `@Irreversible` decorator; no revert is possible
+  after this call.
+
+#### Label management
+
+Labels are IMAP folders prefixed `Labels/`. A message can appear in multiple label folders
+simultaneously (Proton Bridge virtualises this). Add-label = IMAP COPY; remove-label =
+mechanism TBD during implementation (see PRD).
+
+* `list_labels` — lists all `Labels/`-prefixed mailboxes with the same schema as `get_folders`.
+  Read-only.
+* `create_label` — creates `Labels/<name>` (flat — no nesting). Revertable.
+* `delete_label` — deletes `Labels/<name>`. **Revertable**: captures all message IDs in the
+  label before deletion. Does NOT clear the operation log. Cannot delete `Labels/` itself.
+* `add_labels` — bulk copies emails into one or more label folders. Returns per-item results
+  including new UIDs in each label folder (stored in log for revert).
+* `remove_labels` — bulk removes emails from one or more label folders.
+
+#### Reversible bulk operations
+
+* All mutating tools participate in an in-memory `OperationLog` (ring buffer, 100 entries).
+* Decoupled from `ImapClient` via an `OperationLogInterceptor` class. Tool handlers call the
+  interceptor; ImapClient has no knowledge of the log.
+* New `@Tracked` decorator: on success/partial, captures reversal state, pushes to log, extends
+  result with `operationId`.
+* New `@Irreversible` decorator: on success/partial, clears the log. Used only for `delete_folder`.
+* `revert_operations(operationId)` unwinds all ops from most-recent down to and including the
+  given ID, in reverse order. Fails with `UNKNOWN_OPERATION_ID` if the ID is not in the log.
+* The log is in-memory only; resets on server restart.
 
 ### M4
 
@@ -73,6 +115,6 @@ We'll work iteratively to create the MCP server:
 * Claude can delete emails with a trash tool
 * Exposure of this tool is configurable
 
-### M5
+### M6
 
 * Claude can create draft emails and store them in the IMAP server

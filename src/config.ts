@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
-import type { AppConfig } from './types/index.js';
+import selfsigned from 'selfsigned';
+import type { AppConfig, McpHttpTlsConfig } from './types/index.js';
 
 function requireValue(
   cliValue: string | undefined,
@@ -34,6 +36,30 @@ function intValue(
   return parsed;
 }
 
+function buildTlsConfig(
+  httpsEnabled: boolean,
+  certPath:     string | undefined,
+  keyPath:      string | undefined,
+): McpHttpTlsConfig | undefined {
+  if (!httpsEnabled) return undefined;
+
+  if (certPath && keyPath) {
+    return {
+      cert: readFileSync(certPath, 'utf8'),
+      key:  readFileSync(keyPath,  'utf8'),
+    };
+  }
+
+  if (certPath || keyPath) {
+    throw new Error('Both --https-cert and --https-key must be provided together');
+  }
+
+  // Auto-generate a self-signed certificate
+  const attrs = [{ name: 'commonName', value: 'proton-bridge-mcp' }];
+  const generated = selfsigned.generate(attrs, { days: 365, keySize: 2048 });
+  return { cert: generated.cert, key: generated.private };
+}
+
 export function loadConfig(argv: string[]): AppConfig {
   const program = new Command();
 
@@ -53,6 +79,9 @@ export function loadConfig(argv: string[]): AppConfig {
     .option('--audit-log-path <path>',        'Audit log file path (required)')
     .option('--log-path <path>',              'Application log file path (stderr if omitted)')
     .option('--log-level <level>',            'Log level: trace|debug|info|warn|error')
+    .option('--https',                        'Enable HTTPS (env: PROTONMAIL_HTTPS)')
+    .option('--https-cert <path>',            'Path to PEM certificate file (env: PROTONMAIL_HTTPS_CERT_PATH)')
+    .option('--https-key <path>',             'Path to PEM private key file (env: PROTONMAIL_HTTPS_KEY_PATH)')
     .option('--verify',                       'Verify IMAP connectivity then exit')
     .allowUnknownOption(false)
     .parse(argv);
@@ -71,8 +100,17 @@ export function loadConfig(argv: string[]): AppConfig {
     auditLogPath?:   string;
     logPath?:        string;
     logLevel?:       string;
+    https?:          boolean;
+    httpsCert?:      string;
+    httpsKey?:       string;
     verify?:         boolean;
   }>();
+
+  const httpsTls = buildTlsConfig(
+    opts.https ?? (process.env['PROTONMAIL_HTTPS'] === 'true'),
+    optionalValue(opts.httpsCert, 'PROTONMAIL_HTTPS_CERT_PATH'),
+    optionalValue(opts.httpsKey,  'PROTONMAIL_HTTPS_KEY_PATH'),
+  );
 
   return {
     bridge: {
@@ -91,6 +129,7 @@ export function loadConfig(argv: string[]): AppConfig {
       port:      intValue(opts.mcpPort, 'PROTONMAIL_MCP_PORT', 3000),
       basePath:  opts.mcpBasePath ?? process.env['PROTONMAIL_MCP_BASE_PATH']  ?? '/mcp',
       authToken: requireValue(opts.mcpAuthToken, 'PROTONMAIL_MCP_AUTH_TOKEN', 'mcp-auth-token'),
+      ...(httpsTls ? { tls: httpsTls } : {}),
     },
     log: (() => {
       const logPath = optionalValue(opts.logPath, 'PROTONMAIL_LOG_PATH') || undefined;

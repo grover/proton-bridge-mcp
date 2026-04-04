@@ -36,8 +36,9 @@ async function main(): Promise<void> {
 
   await app.listen({ host: config.http.host, port: config.http.port });
 
+  const protocol = config.http.tls ? 'https' : 'http';
   logger.info(
-    { host: config.http.host, port: config.http.port, basePath: config.http.basePath },
+    { host: config.http.host, port: config.http.port, basePath: config.http.basePath, protocol },
     'MCP server listening',
   );
 

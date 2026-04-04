@@ -9,10 +9,10 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "dev":   "tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "lint":  "eslint 'src/**/*.ts'",
-    "test":  "echo 'No tests yet — add vitest and update this script' && exit 0",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "echo 'No tests yet — add vitest and update this script' && exit 0",
     "inspector": "npm run build && bash scripts/run_inspector.sh"
   },
   "volta": {
@@ -26,17 +26,18 @@
     "imapflow": "^1.0.0",
     "mailparser": "^3.0.0",
     "pino": "^9.0.0",
+    "selfsigned": "^2.4.1",
     "zod": "^3.0.0"
   },
   "devDependencies": {
+    "@release-it/keep-a-changelog": "^5.0.0",
     "@types/mailparser": "^3.0.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^6.0.0",
     "release-it": "^17.0.0",
-    "@release-it/keep-a-changelog": "^5.0.0"
+    "tsx": "^4.0.0",
+    "typescript": "^6.0.0"
   }
 }

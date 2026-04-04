@@ -22,7 +22,10 @@ export async function createHttpApp(
   config: McpHttpConfig,
   logger: AppLogger,
 ): Promise<FastifyInstance> {
-  const app = Fastify({ loggerInstance: logger as unknown as FastifyBaseLogger });
+  const app = Fastify({
+    ...(config.tls ? { https: config.tls } : {}),
+    loggerInstance: logger as unknown as FastifyBaseLogger,
+  });
 
   const sessions = new Map<string, Session>();
 

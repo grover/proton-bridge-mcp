@@ -19,7 +19,7 @@ HTTP Client (Claude Desktop / MCP Inspector)
 ┌──────────────────▼──────────────────────────┐
 │  McpServer  (src/server.ts)                 │
 │  createMcpServer(imap, pool)                │
-│  ─ 10 registered tools                      │
+│  ─ 12 registered tools                      │
 │  ─ created fresh per HTTP session           │
 │  ─ imap + pool are shared singletons        │
 └──────────────────┬──────────────────────────┘
@@ -110,7 +110,7 @@ Sessions keyed by `mcp-session-id` header. `reply.hijack()` before passing to tr
 `server.connect(transport)` requires a cast due to MCP SDK `exactOptionalPropertyTypes` mismatch on `onclose`.
 
 ### `src/server.ts` — `createMcpServer(imap, pool)`
-Registers 10 tools. Called once per HTTP session. Tool handler pattern:
+Registers 12 tools. Called once per HTTP session. Tool handler pattern:
 ```typescript
 server.tool(name, description, zodRawShape, async (args) => ({
   content: [{ type: 'text', text: JSON.stringify(await handler(args, imap)) }],
@@ -134,6 +134,10 @@ FolderInfo          { path, name, delimiter, flags: string[], specialUse? }
 BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
   MoveResult        { fromMailbox, toMailbox, targetId? }
   FlagResult        { flagsAfter: string[] }
+
+AddLabelsBatchResult  { items: AddLabelsItem[] }
+  AddLabelsItem       { id, data?: AddLabelsItemData[], error? }
+    AddLabelsItemData { labelPath, newId?: EmailId }
 ```
 
 ## Tool Inventory
@@ -150,6 +154,7 @@ BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
 | `mark_read` | `ids` | `FlagBatchResult` | UID STORE +FLAGS (\\Seen) |
 | `mark_unread` | `ids` | `FlagBatchResult` | UID STORE -FLAGS (\\Seen) |
 | `verify_connectivity` | — | `{ success, latencyMs? }` | connect + NOOP |
+| `add_labels` | `ids`, `labelNames` | `AddLabelsBatchResult` | UID COPY per item/label |
 | `drain_connections` | — | `{ message }` | pool.drain() |
 
 ## Batch Contract

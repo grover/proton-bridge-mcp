@@ -26,6 +26,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
   - [move_emails](#move_emails)
   - [mark_read](#mark_read)
   - [mark_unread](#mark_unread)
+  - [add_labels](#add_labels)
 - [Maintenance](#maintenance)
   - [verify_connectivity](#verify_connectivity)
   - [drain_connections](#drain_connections)
@@ -278,6 +279,51 @@ Mark a batch of emails as unread by removing the `\Seen` IMAP flag.
 **Returns:** `BatchItemResult<FlagResult>[]`
 
 _(Same structure as `mark_read` — see above.)_
+
+---
+
+### `add_labels`
+
+Add one or more Proton Mail labels to a batch of emails. Each email is copied into the corresponding label folder via IMAP COPY, so it simultaneously remains in its original folder. Returns per-email results including the new UID in each label folder.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `ids` | [`EmailId[]`](#emailid) | Emails to label (1–50) |
+| `labelNames` | `string[]` | Label names to apply (plain names without `Labels/` prefix, 1+) |
+
+**Returns:** `AddLabelsBatchResult`
+
+```jsonc
+{
+  "items": [
+    {
+      "id": { "uid": 42, "mailbox": "INBOX" },
+      "data": [
+        {
+          "labelPath": "Labels/Important",
+          "newId": { "uid": 7, "mailbox": "Labels/Important" }
+        },
+        {
+          "labelPath": "Labels/Work",
+          "newId": { "uid": 12, "mailbox": "Labels/Work" }
+        }
+      ]
+    },
+    {
+      "id": { "uid": 99, "mailbox": "INBOX" },
+      "error": { "code": "COPY_FAILED", "message": "UID 99 not found in INBOX" }
+    }
+  ]
+}
+```
+
+> **Note:** If a requested label does not exist as an IMAP folder (e.g. `Labels/Foo`), the corresponding entry in `data` will have `labelPath` but no `newId`. If **all** requested labels are missing, the item reports a `LABEL_NOT_FOUND` error instead.
 
 ---
 

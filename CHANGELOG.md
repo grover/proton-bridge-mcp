@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `add_labels` MCP tool — add one or more Proton Mail labels to a batch of emails via IMAP COPY; returns per-email results including new UIDs in label folders
+- `AddLabelsBatchResult`, `AddLabelsItem`, `AddLabelsItemData` types in `src/types/operations.ts`
+
+### Changed
+
 - Simplified the release
 
 ## [0.2.0] - 2026-04-04

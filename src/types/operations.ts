@@ -24,5 +24,24 @@ export interface FlagResult {
   flagsAfter: string[];
 }
 
+/** Result of a single label application to one email */
+export interface AddLabelsItemData {
+  labelPath: string;
+  /** New UID in the label folder. May be undefined if the server doesn't report COPYUID. */
+  newId?:    EmailId;
+}
+
+/** Per-email result for add_labels */
+export interface AddLabelsItem {
+  id:     EmailId;
+  data?:  AddLabelsItemData[];
+  error?: { code: string; message: string };
+}
+
+/** Batch result for add_labels */
+export interface AddLabelsBatchResult {
+  items: AddLabelsItem[];
+}
+
 export type MoveBatchResult = BatchItemResult<MoveResult>[];
 export type FlagBatchResult = BatchItemResult<FlagResult>[];

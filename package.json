@@ -12,7 +12,8 @@
     "dev":   "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint":  "eslint 'src/**/*.ts'",
-    "test":  "echo 'No tests yet — add vitest and update this script' && exit 0"
+    "test":  "echo 'No tests yet — add vitest and update this script' && exit 0",
+    "inspector": "npm run build && bash scripts/run_inspector.sh"
   },
   "volta": {
     "node": "25.9.0"

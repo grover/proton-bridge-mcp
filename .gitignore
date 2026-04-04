@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 
 
 audit.jsonl
+
+# MCPB build artifacts
+*.mcpb
+.mcpb-staging/

@@ -7,13 +7,17 @@
   "engines": {
     "node": ">=25.9.0"
   },
+  "bin": {
+    "proton-bridge-mcp": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint 'src/**/*.ts'",
     "test": "echo 'No tests yet — add vitest and update this script' && exit 0",
-    "inspector": "npm run build && bash scripts/run_inspector.sh"
+    "inspector": "npm run build && bash scripts/run_inspector.sh",
+    "package": "npm run build && bash scripts/build-mcpb.sh"
   },
   "volta": {
     "node": "25.9.0"
@@ -37,6 +41,7 @@
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",
     "release-it": "^17.0.0",
+    "@anthropic-ai/mcpb": "latest",
     "tsx": "^4.0.0",
     "typescript": "^6.0.0"
   }

@@ -29,11 +29,16 @@ npm run lint           # ESLint with type-aware parsing
 npm test               # stub — replace with vitest when tests are added
 
 node dist/index.js --verify          # test IMAP connectivity then exit
-node dist/index.js \                 # minimum required args
+node dist/index.js \                 # STDIO mode (default) — minimum required args
+  --bridge-username your@protonmail.com \
+  --bridge-password bridge-generated-password
+
+node dist/index.js --http \          # HTTP mode — requires auth token
   --bridge-username your@protonmail.com \
   --bridge-password bridge-generated-password \
-  --mcp-auth-token your-secret-token \
-  --audit-log-path ./audit.jsonl
+  --mcp-auth-token your-secret-token
+
+npm run package                      # build + create proton-bridge-mcp.mcpb for Claude Desktop
 ```
 
 Copy `.env.example` → `.env`. The bridge password comes from the Proton Bridge desktop app
@@ -73,11 +78,11 @@ To enable npm publish: set `"publish": true` in `.release-it.json` and add `NPM_
 |---|---|---|
 | MVP | **Complete** | Scaffolding + IMAP pool + audit + verify + `list_folders` + idle drain timer |
 | M1 | Partial | `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment` done |
-| M2 | Not started | Move done; revert tool not started |
+| M2 | **Complete** | STDIO default transport + MCPB packaging; OAuth (issue #7) not started |
 | M3 | Partial | `mark_read`, `mark_unread` done; star/archive/trash pending |
 | M4–M5 | Not started | |
 
-**Next:** M2 revert tool, then M3 star/archive/trash.
+**Next:** M3 star/archive/trash, then revert tool.
 
 ## Key Patterns
 
@@ -119,9 +124,12 @@ try {
 CLI args (`commander`) → env vars → defaults. All env vars prefixed `PROTONMAIL_`.
 `loadConfig(process.argv)` throws with the flag/var name if a required value is missing.
 
-### Per-Session McpServer
-`McpServer` connects to one transport at a time. Each HTTP session gets its own instance
-(created in `createHttpApp`, not in `src/index.ts`). `ImapClient` and `ImapConnectionPool` are shared singletons.
+### Transport Modes
+- **STDIO (default):** no flags needed; `src/stdio.ts` connects one `McpServer` to `StdioServerTransport`
+- **HTTP:** `--http`; each session gets its own `McpServer` instance (created in `createHttpApp`)
+- **HTTPS:** `--https`; same as HTTP but with TLS; auto-generates self-signed cert if no cert/key provided
+- Transport mode is CLI-flag only — no env var (`PROTONMAIL_HTTPS` removed)
+- `ImapClient` and `ImapConnectionPool` are shared singletons across all modes
 
 ## NodeNext ESM Import Rule
 All local imports MUST use `.js` extension:
@@ -139,6 +147,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 | `moved['uidMap'][uid]` | `imapflow`: `CopyResponseObject.uidMap` is `Map<number,number>` not a plain object | `moved !== false ? moved.uidMap?.get(uid) : undefined` |
 | `logPath: undefined` in config | `exactOptionalPropertyTypes`: can't assign `undefined` to `prop?: T` | Conditional spread: `...(val ? { logPath: val } : {})` |
 | `server.connect(transport)` | MCP SDK: `StreamableHTTPServerTransport.onclose` is optional but `Transport` requires non-optional — `exactOptionalPropertyTypes` mismatch | Cast: `transport as Parameters<typeof server.connect>[0]` |
+| `server.tool()` with annotations | MCP SDK v1: the 5-arg `tool(name, desc, schema, annotations, cb)` overload is deprecated | Use `server.registerTool(name, { description, inputSchema, annotations }, cb)` instead |
 | Fastify logger generic | `loggerInstance: pinoLogger` infers `AppLogger` generic; incompatible with `FastifyBaseLogger` return type | Cast: `logger as unknown as FastifyBaseLogger` |
 | TC39 decorator syntax at runtime | TypeScript 6 with `target: ESNext` emits `@Decorator(...)` verbatim; Node.js 25.9.0 cannot parse it (no V8 flag enables it reliably) | Use `experimentalDecorators: true` in tsconfig — TypeScript compiles to `__decorate` helpers; rewrite decorator to legacy `(target, key, descriptor)` API |
 
@@ -161,8 +170,16 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 ## Verify Setup
 
 ```bash
-node dist/index.js --verify                     # connectivity check
-curl -X POST http://127.0.0.1:3000/mcp          # → 401 (no token)
+node dist/index.js --verify \
+  --bridge-username x --bridge-password y         # connectivity check (STDIO mode)
+
+# HTTP mode testing
+node dist/index.js --http \
+  --bridge-username x --bridge-password y \
+  --mcp-auth-token t &
+curl -X POST http://127.0.0.1:3000/mcp            # → 401 (no token)
 npx @modelcontextprotocol/inspector http://127.0.0.1:3000/mcp  # set Authorization header
-tail -f audit.jsonl | jq .                      # watch audit entries
+
+tail -f ~/.proton-bridge-mcp/audit.jsonl | jq .   # watch audit entries (default path)
+npm run package                                    # build proton-bridge-mcp.mcpb
 ```

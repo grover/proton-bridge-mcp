@@ -72,6 +72,8 @@ export function loadConfig(argv: string[]): AppConfig {
     .option('--bridge-password <password>',   'Bridge-generated password (required)')
     .option('--pool-min <n>',                 'Min IMAP connections in pool')
     .option('--pool-max <n>',                 'Max IMAP connections in pool')
+    .option('--pool-idle-drain-secs <n>',     'Drain pool to min after N idle seconds (default: 30)')
+    .option('--pool-idle-timeout-secs <n>',   'Empty pool after N idle seconds (default: 300)')
     .option('--mcp-host <host>',              'MCP HTTP server host')
     .option('--mcp-port <port>',              'MCP HTTP server port')
     .option('--mcp-base-path <path>',         'MCP HTTP base path')
@@ -91,8 +93,10 @@ export function loadConfig(argv: string[]): AppConfig {
     bridgeImapPort?: string;
     bridgeUsername?: string;
     bridgePassword?: string;
-    poolMin?:        string;
-    poolMax?:        string;
+    poolMin?:             string;
+    poolMax?:             string;
+    poolIdleDrainSecs?:   string;
+    poolIdleTimeoutSecs?: string;
     mcpHost?:        string;
     mcpPort?:        string;
     mcpBasePath?:    string;
@@ -121,8 +125,10 @@ export function loadConfig(argv: string[]): AppConfig {
       tls:      { rejectUnauthorized: false },
     },
     pool: {
-      min: intValue(opts.poolMin, 'PROTONMAIL_CONNECTION_POOL_MIN', 1),
-      max: intValue(opts.poolMax, 'PROTONMAIL_CONNECTION_POOL_MAX', 5),
+      min:             intValue(opts.poolMin,             'PROTONMAIL_CONNECTION_POOL_MIN',              1),
+      max:             intValue(opts.poolMax,             'PROTONMAIL_CONNECTION_POOL_MAX',              5),
+      idleDrainSecs:   intValue(opts.poolIdleDrainSecs,   'PROTONMAIL_CONNECTION_POOL_IDLE_DRAIN_SECS',  30),
+      idleTimeoutSecs: intValue(opts.poolIdleTimeoutSecs, 'PROTONMAIL_CONNECTION_POOL_IDLE_TIMEOUT_SECS', 300),
     },
     http: {
       host:      opts.mcpHost     ?? process.env['PROTONMAIL_MCP_HOST']       ?? '127.0.0.1',

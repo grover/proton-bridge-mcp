@@ -9,8 +9,10 @@ export interface ProtonMailBridgeConfig {
 }
 
 export interface ConnectionPoolConfig {
-  min: number;
-  max: number;
+  min:              number;
+  max:              number;
+  idleDrainSecs:    number;  // drain to min after this many idle seconds (default 30)
+  idleTimeoutSecs:  number;  // empty pool after this many idle seconds (default 300)
 }
 
 export interface McpHttpTlsConfig {

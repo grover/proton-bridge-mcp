@@ -13,6 +13,8 @@ export class ImapConnectionPool {
   #inUse: Map<ImapFlow, number> = new Map(); // conn → version at acquire time
   #waiters: Array<(entry: PoolEntry) => void> = [];
   #drainWaiters: Array<() => void> = [];
+  #lastActivityAt = Date.now();
+  #idleTimer: ReturnType<typeof setInterval> | undefined;
   readonly #config:     ProtonMailBridgeConfig;
   readonly #poolConfig: ConnectionPoolConfig;
   readonly #logger:     AppLogger;
@@ -29,13 +31,20 @@ export class ImapConnectionPool {
 
   async start(): Promise<void> {
     this.#logger.info(
-      { min: this.#poolConfig.min, max: this.#poolConfig.max },
+      { min: this.#poolConfig.min, max: this.#poolConfig.max,
+        idleDrainSecs: this.#poolConfig.idleDrainSecs,
+        idleTimeoutSecs: this.#poolConfig.idleTimeoutSecs },
       '[pool] starting — creating minimum connections',
     );
     await this.#replenish();
+    this.#startIdleTimer();
   }
 
   async stop(): Promise<void> {
+    if (this.#idleTimer !== undefined) {
+      clearInterval(this.#idleTimer);
+      this.#idleTimer = undefined;
+    }
     this.#logger.info(
       { available: this.#available.length, inUse: this.#inUse.size },
       '[pool] stopping — logging out all connections',
@@ -77,6 +86,8 @@ export class ImapConnectionPool {
   }
 
   async acquire(): Promise<ImapFlow> {
+    this.#lastActivityAt = Date.now();
+
     // Try to get a free connection from the available pool
     const entry = this.#available.pop();
     if (entry) {
@@ -227,6 +238,56 @@ export class ImapConnectionPool {
     );
 
     return { conn, version };
+  }
+
+  /**
+   * Idle timer: checks every 10 s.
+   * - If idle ≥ idleTimeoutSecs → drain to zero (pool recreates on next use).
+   * - If idle ≥ idleDrainSecs  → drain excess connections above min.
+   */
+  #startIdleTimer(): void {
+    const checkMs = 10_000;
+    this.#idleTimer = setInterval(() => {
+      const idleSecs = (Date.now() - this.#lastActivityAt) / 1000;
+      if (idleSecs >= this.#poolConfig.idleTimeoutSecs) {
+        void this.#drainToZero();
+      } else if (idleSecs >= this.#poolConfig.idleDrainSecs) {
+        this.#drainToMin();
+      }
+    }, checkMs);
+    // Don't keep process alive just for the idle timer
+    this.#idleTimer.unref?.();
+  }
+
+  /** Close connections in #available above min. Does not touch in-use connections. */
+  #drainToMin(): void {
+    const excess = this.#available.length - this.#poolConfig.min;
+    if (excess <= 0) return;
+    const toClose = this.#available.splice(0, excess);
+    for (const entry of toClose) {
+      entry.conn.logout().catch(() => {});
+    }
+    this.#logger.info(
+      { closed: toClose.length, remaining: this.#available.length },
+      '[pool] idle drain — reduced to minimum',
+    );
+  }
+
+  /**
+   * Close all available connections and increment pool version so in-use
+   * connections are discarded on release rather than returned to the pool.
+   * Pool replenishes to min on the next acquire().
+   */
+  async #drainToZero(): Promise<void> {
+    if (this.#available.length === 0 && this.#inUse.size === 0) return;
+    this.#poolVersion++;
+    const toClose = [...this.#available];
+    this.#available = [];
+    await Promise.all(toClose.map(e => e.conn.logout().catch(() => {})));
+    this.#logger.info(
+      { version: this.#poolVersion, inUse: this.#inUse.size },
+      '[pool] idle timeout — emptied available connections',
+    );
   }
 
   #makeRawConnection(): Promise<ImapFlow> {

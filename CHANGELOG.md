@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `release-it` + `@release-it/keep-a-changelog` for local release automation (bumps version, rewrites `CHANGELOG.md`, pushes tag)
 - `.nvmrc` and `package.json` `volta` pin for Node 25.9.0 local dev consistency
 - `test` script stub in `package.json` (`--if-present` in CI; activates when vitest is added)
+- `list_folders` MCP tool — IMAP LIST command enumerating all mailboxes with path, name, delimiter, flags, and RFC 6154 special-use attributes (Sent, Drafts, Trash, Junk, etc.)
+- `FolderInfo` type in `src/types/email.ts`
+- Idle pool drain timer in `ImapConnectionPool`:
+  - `idleDrainSecs` (default 30 s, `--pool-idle-drain-secs` / `PROTONMAIL_CONNECTION_POOL_IDLE_DRAIN_SECS`): drains available connections above `min` after inactivity
+  - `idleTimeoutSecs` (default 300 s, `--pool-idle-timeout-secs` / `PROTONMAIL_CONNECTION_POOL_IDLE_TIMEOUT_SECS`): empties all available connections after prolonged inactivity (pool version bumped; in-use connections discarded on release)
+  - Timer checks every 10 s, is unref'd (won't block process exit), and is stopped on `pool.stop()`
 
 ### Fixed
 

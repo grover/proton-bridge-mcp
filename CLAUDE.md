@@ -71,13 +71,13 @@ To enable npm publish: set `"publish": true` in `.release-it.json` and add `NPM_
 
 | Milestone | Status | Notes |
 |---|---|---|
-| MVP | Partial | Scaffolding + IMAP pool + audit + verify. Missing: `list_folders` tool, idle pool drain timer |
+| MVP | **Complete** | Scaffolding + IMAP pool + audit + verify + `list_folders` + idle drain timer |
 | M1 | Partial | `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment` done |
 | M2 | Not started | Move done; revert tool not started |
 | M3 | Partial | `mark_read`, `mark_unread` done; star/archive/trash pending |
 | M4–M5 | Not started | |
 
-**Next required for MVP:** `list_folders` tool (IMAP LIST command) + idle pool drain timer (5 min configurable).
+**Next:** M2 revert tool, then M3 star/archive/trash.
 
 ## Key Patterns
 
@@ -146,6 +146,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 
 | Tool | Purpose |
 |---|---|
+| `list_folders` | List all IMAP mailboxes/folders with special-use flags |
 | `list_mailbox` | Browse emails in a mailbox, newest first (paginated) |
 | `fetch_summaries` | Envelope data for known UIDs (batch) |
 | `fetch_message` | Text/HTML body + attachment metadata (batch, no content) |

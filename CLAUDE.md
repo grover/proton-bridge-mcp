@@ -8,12 +8,24 @@
 MCP server bridging ProtonMail via the local Proton Bridge IMAP daemon (`127.0.0.1:1143` by default).
 See [project-spec.md](project-spec.md) for milestone roadmap. See [ARCHITECTURE.md](ARCHITECTURE.md) for design detail.
 
+## Pre-commit Checklist
+
+Before every commit:
+1. `npm install` — regenerate `package-lock.json` if `package.json` changed; always run to ensure lockfile is in sync
+2. `npm run lint` — must pass with zero errors
+3. `npm run build` — must compile clean
+4. `npm ci` — verify the lockfile is in sync (catches the case where `package.json` was edited without running `npm install`)
+
+CI runs `npm ci`, which fails if `package-lock.json` is out of sync with `package.json`.
+
 ## Build & Run
 
 ```bash
 npm install
 npm run build          # compile TypeScript → dist/
 npm run dev            # tsx watch (no compile, restarts on change)
+npm run lint           # ESLint with type-aware parsing
+npm test               # stub — replace with vitest when tests are added
 
 node dist/index.js --verify          # test IMAP connectivity then exit
 node dist/index.js \                 # minimum required args
@@ -25,6 +37,34 @@ node dist/index.js \                 # minimum required args
 
 Copy `.env.example` → `.env`. The bridge password comes from the Proton Bridge desktop app
 (Account → Mailbox password), **not** your ProtonMail login password.
+
+## CI & Release
+
+### CI (`.github/workflows/ci.yml`)
+Runs on every PR and push to `main`. Three parallel jobs: **Lint**, **Build**, **Test**.
+- `Lint` and `Build` jobs are non-trivial (type-aware ESLint = tsc runs inside eslint)
+- `Test` uses `--if-present`; becomes active once `"test": "vitest run"` is in `package.json`
+- `Build` uploads `dist/` as an artifact (SHA-keyed, 7-day retention)
+- Concurrency: cancels in-progress PR runs on new push; `main` pushes never cancel each other
+
+Required status checks to configure in GitHub branch protection: **Lint**, **Build**, **Test** (exact `name:` values).
+
+### Release (`.release-it.json` + `.github/workflows/release.yml`)
+1. Populate `[Unreleased]` in `CHANGELOG.md` (existing habit)
+2. Run `npx release-it` locally — prompts for bump type, then:
+   - Runs `lint` + `build` (pre-flight guard)
+   - Moves `[Unreleased]` → `[x.y.z]` in `CHANGELOG.md`
+   - Bumps `package.json` version
+   - Commits `chore: release vX.Y.Z` and pushes tag
+3. `release.yml` fires on the tag → extracts the changelog section via `awk` → creates GitHub Release
+
+`github.release: false` in `.release-it.json` — GitHub Release is always created by CI, never from a local machine.
+To enable npm publish: set `"publish": true` in `.release-it.json` and add `NPM_TOKEN` to GitHub Secrets.
+
+### Node version pinning
+- `.nvmrc`: `25.9.0` — nvm/mise/asdf local dev
+- `package.json` `volta.node`: `25.9.0` — Volta local dev
+- `env.NODE_VERSION` in each workflow file — single source per file
 
 ## Milestone Status (project-spec.md)
 

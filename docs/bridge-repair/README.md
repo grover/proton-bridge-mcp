@@ -22,7 +22,7 @@ You likely need to repair Bridge if you see any of these:
 |---|---|
 | `verify_connectivity` fails with "connection refused" | Bridge is not running or IMAP is disabled |
 | `verify_connectivity` fails with "authentication failed" | Mailbox password changed or account needs re-login |
-| `list_folders` returns stale or empty results | Bridge sync database is corrupted |
+| `get_folders` returns stale or empty results | Bridge sync database is corrupted |
 | Emails appear in ProtonMail web but not via MCP | Bridge is stuck syncing or needs a resync |
 | Bridge shows "Update available" banner | Outdated version can cause protocol issues |
 | Bridge status indicator is red/orange | General connectivity or sync issue |
@@ -199,7 +199,7 @@ node dist/index.js --verify \
 # Use the drain_connections tool via your MCP client, or restart the server
 
 # 3. Test a read operation
-# Use list_folders via your MCP client to confirm mailboxes are visible
+# Use get_folders via your MCP client to confirm mailboxes are visible
 ```
 
 ### Expected Output

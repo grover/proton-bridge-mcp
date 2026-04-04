@@ -55,15 +55,20 @@ We'll work iteratively to create the MCP server:
 
 ### M2
 
+* Implement OAuth 2.0 support according to https://github.com/grover/proton-bridge-mcp/issues/7
+* Implement STDIO support according to https://github.com/grover/proton-bridge-mcp/issues/10
+
+### M3
+
 * Claude can move emails
 * A revert tool enables Claude to reverse any action it's done (limited to the past 100 actions taken.)
 
-### M3
+### M4
 
 * Claude can mark emails as read, unread, starred, etc.
 * This should also be revertable with the revert tool
 
-### M4
+### M5
 
 * Claude can delete emails with a trash tool
 * Exposure of this tool is configurable

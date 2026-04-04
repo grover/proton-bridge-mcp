@@ -35,9 +35,10 @@ export interface LogConfig {
 }
 
 export interface AppConfig {
-  bridge:  ProtonMailBridgeConfig;
-  pool:    ConnectionPoolConfig;
-  http:    McpHttpConfig;
-  log:     LogConfig;
-  verify:  boolean;
+  transport: 'stdio' | 'http' | 'https';
+  bridge:    ProtonMailBridgeConfig;
+  pool:      ConnectionPoolConfig;
+  http?:     McpHttpConfig;  // only present in http/https mode
+  log:       LogConfig;
+  verify:    boolean;
 }

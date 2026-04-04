@@ -1,0 +1,90 @@
+{
+  "manifest_version": "0.3",
+  "name": "proton-bridge-mcp",
+  "version": "0.1.0",
+  "description": "Access your ProtonMail via MCP — bridges Claude to Proton Bridge IMAP",
+  "author": { "name": "Michael Fröhlich" },
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js",
+        "--bridge-host=${user_config.bridge_host}",
+        "--bridge-imap-port=${user_config.bridge_imap_port}",
+        "--bridge-username=${user_config.bridge_username}",
+        "--bridge-password=${user_config.bridge_password}",
+        "--pool-min=${user_config.pool_min}",
+        "--pool-max=${user_config.pool_max}",
+        "--pool-idle-drain-secs=${user_config.pool_idle_drain_secs}",
+        "--pool-idle-timeout-secs=${user_config.pool_idle_timeout_secs}",
+        "--log-level=${user_config.log_level}"
+      ]
+    }
+  },
+  "user_config": {
+    "bridge_username": {
+      "type": "string",
+      "title": "ProtonMail Address",
+      "description": "Your ProtonMail email address (e.g. you@protonmail.com)",
+      "required": true
+    },
+    "bridge_password": {
+      "type": "string",
+      "title": "Bridge Mailbox Password",
+      "description": "Bridge-generated mailbox password (from Proton Bridge app \u2192 Account \u2192 Mailbox password). NOT your ProtonMail login password.",
+      "sensitive": true,
+      "required": true
+    },
+    "bridge_host": {
+      "type": "string",
+      "title": "Bridge IMAP Host",
+      "description": "Hostname of the Proton Bridge IMAP server",
+      "default": "127.0.0.1",
+      "required": false
+    },
+    "bridge_imap_port": {
+      "type": "number",
+      "title": "Bridge IMAP Port",
+      "description": "Port of the Proton Bridge IMAP server",
+      "default": 1143,
+      "required": false
+    },
+    "pool_min": {
+      "type": "number",
+      "title": "Connection Pool Min",
+      "description": "Minimum number of IMAP connections to keep open",
+      "default": 1,
+      "required": false
+    },
+    "pool_max": {
+      "type": "number",
+      "title": "Connection Pool Max",
+      "description": "Maximum number of concurrent IMAP connections",
+      "default": 5,
+      "required": false
+    },
+    "pool_idle_drain_secs": {
+      "type": "number",
+      "title": "Idle Drain (seconds)",
+      "description": "Drain pool to minimum after this many idle seconds",
+      "default": 30,
+      "required": false
+    },
+    "pool_idle_timeout_secs": {
+      "type": "number",
+      "title": "Idle Timeout (seconds)",
+      "description": "Empty pool entirely after this many idle seconds (0 = disabled)",
+      "default": 300,
+      "required": false
+    },
+    "log_level": {
+      "type": "string",
+      "title": "Log Level",
+      "description": "Logging verbosity: trace | debug | info | warn | error",
+      "default": "info",
+      "required": false
+    }
+  }
+}

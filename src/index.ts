@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import 'dotenv/config';
 import { loadConfig }         from './config.js';
 import { createLogger }       from './logger.js';
@@ -5,6 +6,7 @@ import { AuditLogger }        from './bridge/audit.js';
 import { ImapConnectionPool } from './bridge/pool.js';
 import { ImapClient }         from './bridge/imap.js';
 import { createHttpApp }      from './http.js';
+import { runStdioServer }     from './stdio.js';
 
 async function main(): Promise<void> {
   const config = loadConfig(process.argv);
@@ -32,26 +34,34 @@ async function main(): Promise<void> {
   await pool.start();
 
   const imap = new ImapClient(pool, audit, logger);
-  const app  = await createHttpApp(imap, pool, config.http, logger);
 
-  await app.listen({ host: config.http.host, port: config.http.port });
-
-  const protocol = config.http.tls ? 'https' : 'http';
-  logger.info(
-    { host: config.http.host, port: config.http.port, basePath: config.http.basePath, protocol },
-    'MCP server listening',
-  );
-
-  // ── Graceful shutdown ─────────────────────────────────────────────────────
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'Shutdown signal received');
-    await app.close();
     await pool.stop();
     process.exit(0);
   };
 
-  process.on('SIGINT',  () => void shutdown('SIGINT'));
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  if (config.transport === 'stdio') {
+    // ── STDIO mode ──────────────────────────────────────────────────────────
+    const closeTransport = await runStdioServer(imap, pool);
+
+    process.on('SIGINT',  () => void (async () => { await closeTransport(); await shutdown('SIGINT'); })());
+    process.on('SIGTERM', () => void (async () => { await closeTransport(); await shutdown('SIGTERM'); })());
+  } else {
+    // ── HTTP / HTTPS mode ───────────────────────────────────────────────────
+    const app = await createHttpApp(imap, pool, config.http!, logger);
+
+    await app.listen({ host: config.http!.host, port: config.http!.port });
+
+    const protocol = config.transport === 'https' ? 'https' : 'http';
+    logger.info(
+      { host: config.http!.host, port: config.http!.port, basePath: config.http!.basePath, protocol },
+      'MCP server listening',
+    );
+
+    process.on('SIGINT',  () => void (async () => { await app.close(); await shutdown('SIGINT'); })());
+    process.on('SIGTERM', () => void (async () => { await app.close(); await shutdown('SIGTERM'); })());
+  }
 }
 
 main().catch((err: unknown) => {

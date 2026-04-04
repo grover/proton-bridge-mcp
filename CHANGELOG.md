@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- GitHub Actions CI workflow (`.github/workflows/ci.yml`): parallel Lint, Build, Test jobs with concurrency cancellation and npm caching
+- GitHub Actions release workflow (`.github/workflows/release.yml`): triggered on version tag push, extracts changelog section, creates GitHub Release
+- `release-it` + `@release-it/keep-a-changelog` for local release automation (bumps version, rewrites `CHANGELOG.md`, pushes tag)
+- `.nvmrc` and `package.json` `volta` pin for Node 25.9.0 local dev consistency
+- `test` script stub in `package.json` (`--if-present` in CI; activates when vitest is added)
+
 ### Fixed
 
 - `conn.mailbox` access in `ImapClient.listMailbox`: guarded `false | MailboxObject` union before accessing `.exists`
@@ -37,3 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Index-stable batch operation results (`BatchItemResult<T>[]`)
 - Per-item error reporting in batch operations (`{ id, error: { code, message } }`)
 - Attachment lazy-loading: `fetch_message` returns metadata only; `fetch_attachment` fetches content
+
+[Unreleased]: https://github.com/grover/proton-bridge-mcp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/grover/proton-bridge-mcp/releases/tag/v0.1.0

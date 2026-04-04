@@ -13,6 +13,7 @@ import {
   markUnreadSchema,         handleMarkUnread,
   verifyConnectivitySchema, handleVerifyConnectivity,
   drainConnectionsSchema,   handleDrainConnections,
+  addLabelsSchema,          handleAddLabels,
 } from './tools/index.js';
 
 function toText(data: unknown): string {
@@ -165,6 +166,18 @@ export function createMcpServer(
     },
     async () => ({
       content: [{ type: 'text', text: toText(await handleDrainConnections(pool)) }],
+    }),
+  );
+
+  server.registerTool(
+    'add_labels',
+    {
+      description: 'Add one or more Proton Mail labels to a batch of emails. Each email is copied into the corresponding label folder and simultaneously remains in its original folder. Supports up to 50 emails per call. Returns per-email results including the new UID in each label folder, which is used internally to enable label removal and revert.',
+      inputSchema: addLabelsSchema,
+      annotations: MUTATING,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleAddLabels(args, imap)) }],
     }),
   );
 

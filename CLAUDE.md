@@ -170,6 +170,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 | `mark_read` | Add `\Seen` flag (batch) |
 | `mark_unread` | Remove `\Seen` flag (batch) |
 | `verify_connectivity` | Test IMAP connection to Proton Bridge |
+| `add_labels` | Add Proton Mail labels to a batch of emails (IMAP COPY) |
 | `drain_connections` | Flush all pool connections immediately |
 
 ## Verify Setup

@@ -9,3 +9,4 @@ export * from './mark-read.js';
 export * from './mark-unread.js';
 export * from './verify-connectivity.js';
 export * from './drain-connections.js';
+export * from './add-labels.js';

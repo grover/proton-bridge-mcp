@@ -11,10 +11,11 @@ See [project-spec.md](project-spec.md) for milestone roadmap. See [ARCHITECTURE.
 ## Pre-commit Checklist
 
 Before every commit:
-1. `npm install` — regenerate `package-lock.json` if `package.json` changed; always run to ensure lockfile is in sync
-2. `npm run lint` — must pass with zero errors
-3. `npm run build` — must compile clean
-4. `npm ci` — verify the lockfile is in sync (catches the case where `package.json` was edited without running `npm install`)
+1. `git fetch origin && git rebase origin/main` — keep the branch current before committing
+2. `npm install` — regenerate `package-lock.json` if `package.json` changed; always run to ensure lockfile is in sync
+3. `npm run lint` — must pass with zero errors
+4. `npm run build` — must compile clean
+5. `npm ci` — verify the lockfile is in sync (catches the case where `package.json` was edited without running `npm install`)
 
 CI runs `npm ci`, which fails if `package-lock.json` is out of sync with `package.json`.
 
@@ -139,6 +140,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 | `logPath: undefined` in config | `exactOptionalPropertyTypes`: can't assign `undefined` to `prop?: T` | Conditional spread: `...(val ? { logPath: val } : {})` |
 | `server.connect(transport)` | MCP SDK: `StreamableHTTPServerTransport.onclose` is optional but `Transport` requires non-optional — `exactOptionalPropertyTypes` mismatch | Cast: `transport as Parameters<typeof server.connect>[0]` |
 | Fastify logger generic | `loggerInstance: pinoLogger` infers `AppLogger` generic; incompatible with `FastifyBaseLogger` return type | Cast: `logger as unknown as FastifyBaseLogger` |
+| TC39 decorator syntax at runtime | TypeScript 6 with `target: ESNext` emits `@Decorator(...)` verbatim; Node.js 25.9.0 cannot parse it (no V8 flag enables it reliably) | Use `experimentalDecorators: true` in tsconfig — TypeScript compiles to `__decorate` helpers; rewrite decorator to legacy `(target, key, descriptor)` API |
 
 ## MCP Tools (current)
 

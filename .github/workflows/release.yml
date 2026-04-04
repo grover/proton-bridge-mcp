@@ -35,6 +35,8 @@ jobs:
       - name: Create source archive
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          # tar exits 1 for "file changed as we read it" (harmless); only fail on exit code 2+
+          rc=0
           tar czf "proton-bridge-mcp-${VERSION}-source.tar.gz" \
             --exclude=node_modules \
             --exclude=.git \
@@ -42,7 +44,8 @@ jobs:
             --exclude=.mcpb-staging \
             --exclude='*.mcpb' \
             --exclude='*.tar.gz' \
-            .
+            . || rc=$?
+          if [ "$rc" -gt 1 ]; then exit "$rc"; fi
 
       - name: Extract changelog for this version
         run: |

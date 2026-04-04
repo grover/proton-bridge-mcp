@@ -35,11 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `createHttpApp` now takes `(imap, pool, config, logger)` directly and creates `McpServer` per session internally (was planned as `(server, config, logger)`)
-
----
-
-### Added
-
 - Initial skeleton: Fastify HTTP MCP server with `StreamableHTTPServerTransport`
 - 10 MCP tools: `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`,
   `search_mailbox`, `move_emails`, `mark_read`, `mark_unread`, `verify_connectivity`,
@@ -54,5 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-item error reporting in batch operations (`{ id, error: { code, message } }`)
 - Attachment lazy-loading: `fetch_message` returns metadata only; `fetch_attachment` fetches content
 
-[Unreleased]: https://github.com/grover/proton-bridge-mcp/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/grover/proton-bridge-mcp/releases/tag/v0.1.0
+## [0.1.0]
+
+Unreleased.

@@ -31,5 +31,7 @@ TOKEN="${PROTONMAIL_MCP_AUTH_TOKEN:-}"
 # ── Run MCP Inspector on fixed port 6274 ─────────────────────────────────────
 CLIENT_PORT=6274 \
   npx --yes @modelcontextprotocol/inspector \
-  --url "$MCP_URL" \
-  --header "Authorization: Bearer ${TOKEN}"
+  --transport http \
+  --header "Authorization: Bearer ${TOKEN}" \
+  --server-url "$MCP_URL"
+

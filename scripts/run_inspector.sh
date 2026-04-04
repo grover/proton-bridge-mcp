@@ -84,6 +84,7 @@ echo ""
 
 # ── Run MCP Inspector ─────────────────────────────────────────────────────────
 CLIENT_PORT="$INSPECTOR_PORT" \
-  npx --yes @modelcontextprotocol/inspector \
-  --url "$MCP_URL" \
-  --header "Authorization: Bearer ${DEBUG_TOKEN}"
+  npx --yes @modelcontextprotocol/inspector@latest \
+  --transport http \
+  --header "Authorization: Bearer ${DEBUG_TOKEN}" \
+  --server-url "$MCP_URL"

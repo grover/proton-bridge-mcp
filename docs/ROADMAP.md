@@ -72,8 +72,12 @@ See [M3 PRD](plans/m3-folders-labels-revert.md) for full tool specifications, im
 
 ### M4 [FUTURE]
 
-* Claude can mark emails as read, unread, starred, etc.
-* This should also be revertable with the revert tool
+See [M4 PRD](plans/prd-m4-disabled-tools.md) for full specification.
+
+* `--disabled-tools` — selectively hide tools from AI clients via CLI flag, env var, or MCPB config
+* Tool category shortcuts: `read`, `mutating`, `destructive`, `maintenance`
+* Central `isToolAllowed()` gate on tool registration
+* Startup logging of active/disabled tools
 
 ### M5 [FUTURE]
 

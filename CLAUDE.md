@@ -35,6 +35,19 @@ Consult `README.md` for user facing project details
 - Three annotation presets defined in `src/server.ts`: `READ_ONLY`, `MUTATING`, `DESTRUCTIVE`.
 - See `docs/tools/README.md` for per-tool annotation values.
 
+### Tool Categories
+Tools belong to one of four categories (used by `--disabled-tools` and for annotation selection):
+
+| Category | Annotation | Tools |
+|---|---|---|
+| **read** | `READ_ONLY` | `get_folders`, `get_labels`, `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
+| **mutating** | `MUTATING` | `create_folder`, `mark_read`, `mark_unread`, `add_labels` |
+| **destructive** | `DESTRUCTIVE` | `move_emails` |
+| **maintenance** | `READ_ONLY` | `verify_connectivity`, `drain_connections` |
+
+- **Maintenance** tools are idempotent, non-destructive operations on the IMAP connection pool — they do not affect the Proton Mail inbox. See `src/tools/verify-connectivity.ts` and `src/tools/drain-connections.ts`.
+- When adding a new tool, assign it to the appropriate category and update `TOOL_CATEGORIES` in the source.
+
 
 # Conventions
 - **Autonomous execution:** Don't ask confirmation for routine ops (file edits, git, build, lint, start/stop servers)
@@ -43,6 +56,7 @@ Consult `README.md` for user facing project details
 - **Smoke test failures:** Capture in GitHub issue acceptance criteria; repeat all prior failures when re-testing
 - **Numbered workflows:** Are enforceable and cannot skip
 - **Auto-update rule:** After each major code changes, new patterns, or learnings, update `CLAUDE.md`, `ARCHITECTURE.md`, or other documentation file.
+- **PRD commits:** When committing a PRD, always update `docs/ROADMAP.md` in the same commit.
 - **App logger** (`src/logger.ts`): pino → stderr (default) or `PROTONMAIL_LOG_PATH`
 - **Audit logger** (`src/bridge/audit.ts`): JSONL → `PROTONMAIL_AUDIT_LOG_PATH` (file only, **never stderr**)
 - stderr is reserved for operational/MCP/Fastify output
@@ -107,6 +121,29 @@ When working a ticket, you cycle through these personas as the orchestrator:
 - Branch type is bug | feat | refactor -> analyze issue description to determine type
 - Repository uses GitHub flow
 - New branches always taken from latest `main` branch
+
+## Concurrent agent safety
+
+Assume another agent is working in the same repository at all times.
+
+### Workstream isolation
+- Use `isolation: "worktree"` when delegating to sub-agents — each gets its own git worktree with an isolated copy of the repo, preventing file conflicts with the main working directory and other agents.
+- Each agent works on **its own branch** — never push to another agent's branch.
+- Coordinate only via `main` — rebase from `origin/main`, never from another feature branch.
+- If you encounter unexpected commits or changes on a branch, investigate before overwriting — it may be another agent's work.
+
+### Git discipline
+1. **Fetch before every branch operation** — `git fetch origin` before creating, switching, rebasing, or pushing branches. Never trust local refs; always use `origin/main`, not `main`.
+2. **`--force-with-lease` only** — never `--force`. Lease rejects the push if the remote moved since your last fetch.
+3. **Commit or stash before switching branches** — uncommitted changes carry across checkouts and can silently land on the wrong branch.
+4. **Verify branch state after checkout** — `git log --oneline -3` to confirm HEAD is where you expect.
+5. **Keep branches short-lived and narrowly scoped** — reduces collision surface with other agents.
+6. **Don't rewrite history on shared branches without fetching first** — another agent may have pushed since your last fetch.
+
+# Document naming in `docs/plans/`
+
+- **PRDs:** `prd-{milestone}-{feature}.md` — product requirement documents scoped to a milestone (e.g. `prd-m4-disabled-tools.md`)
+- **EDDs:** `edd-{issue#}-{title}.md` — engineering design documents tied to a GitHub issue (e.g. `edd-35-email-id-refactor.md`)
 
 # EDD workflow
 

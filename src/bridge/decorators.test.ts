@@ -63,7 +63,7 @@ describe('@Tracked', () => {
     expect(typeof records[0]!.timestamp).toBe('string');
   });
 
-  it('skips when buildReversal returns null', async () => {
+  it('records noop and returns operationId when buildReversal returns null', async () => {
     const log = new OperationLog();
     const buildReversal: BuildReversalFn = () => null;
 
@@ -79,9 +79,11 @@ describe('@Tracked', () => {
     const subject = new Subject();
     const result = await subject.doWork();
 
-    expect(result).toEqual({ value: 99 });
-    expect(result).not.toHaveProperty('operationId');
-    expect(log.size).toBe(0);
+    expect(result).toHaveProperty('value', 99);
+    expect(result).toHaveProperty('operationId');
+    expect(log.size).toBe(1);
+    const records = log.getFrom((result as unknown as { operationId: number }).operationId);
+    expect(records[0]!.reversal).toEqual({ type: 'noop' });
   });
 
   it('does not catch exceptions', async () => {

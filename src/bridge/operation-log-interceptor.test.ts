@@ -143,7 +143,7 @@ describe('OperationLogInterceptor', () => {
       });
     });
 
-    it('does NOT track when all emails already have \\Seen (no-op)', async () => {
+    it('records noop when all emails already have \\Seen — operationId present, revert is harmless', async () => {
       const ids = [eid(1)];
       const items: BatchItemResult<FlagResult>[] = [
         { id: eid(1), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: ['\\Seen'] } },
@@ -151,9 +151,15 @@ describe('OperationLogInterceptor', () => {
       mock(imap.setFlag).mockResolvedValue(items);
 
       const result = await interceptor.markRead(ids);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
 
-      expect(result).not.toHaveProperty('operationId');
-      expect(log.size).toBe(0);
+      expect(result).toHaveProperty('operationId');
+      expect(log.size).toBe(1);
+
+      // Revert the noop — should succeed harmlessly
+      const revertResult = await interceptor.revertOperations(operationId);
+      expect(revertResult.stepsTotal).toBe(1);
+      expect(revertResult.stepsSucceeded).toBe(1);
     });
 
     it('mixed batch: only tracks emails whose flags actually changed (excludes no-ops)', async () => {
@@ -224,7 +230,7 @@ describe('OperationLogInterceptor', () => {
       });
     });
 
-    it('does NOT track when all emails already lack \\Seen (no-op)', async () => {
+    it('records noop when all emails already lack \\Seen — operationId present, revert is harmless', async () => {
       const ids = [eid(1)];
       const items: BatchItemResult<FlagResult>[] = [
         { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: [] } },
@@ -233,25 +239,25 @@ describe('OperationLogInterceptor', () => {
 
       const result = await interceptor.markUnread(ids);
 
-      expect(result).not.toHaveProperty('operationId');
-      expect(log.size).toBe(0);
+      expect(result).toHaveProperty('operationId');
+      expect(log.size).toBe(1);
     });
   });
 
   describe('createFolder', () => {
-    it('delegates to imap.createFolder and is NOT tracked (no operationId)', async () => {
+    it('delegates to imap.createFolder and returns operationId (noop — reversal not yet implemented)', async () => {
       mock(imap.createFolder).mockResolvedValue({ path: 'NewFolder', created: true });
 
       const result = await interceptor.createFolder('NewFolder');
 
       expect(imap.createFolder).toHaveBeenCalledWith('NewFolder');
-      expect(result).not.toHaveProperty('operationId');
-      expect(log.size).toBe(0);
+      expect(result).toHaveProperty('operationId');
+      expect(log.size).toBe(1);
     });
   });
 
   describe('addLabels', () => {
-    it('delegates to imap.addLabels and is NOT tracked (no operationId)', async () => {
+    it('delegates to imap.addLabels and returns operationId (noop — reversal not yet implemented)', async () => {
       const ids = [eid(1)];
       const labels = ['Important'];
       const batchResult: AddLabelsBatchResult = {
@@ -269,8 +275,8 @@ describe('OperationLogInterceptor', () => {
       const result = await interceptor.addLabels(ids, labels);
 
       expect(imap.addLabels).toHaveBeenCalledWith(ids, labels);
-      expect(result).not.toHaveProperty('operationId');
-      expect(log.size).toBe(0);
+      expect(result).toHaveProperty('operationId');
+      expect(log.size).toBe(1);
     });
   });
 

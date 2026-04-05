@@ -7,7 +7,6 @@ import type {
   BatchItemResult,
   MoveResult,
   FlagResult,
-  AddLabelsItemData,
   AddLabelsBatchResult,
 } from '../types/operations.js';
 

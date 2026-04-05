@@ -41,29 +41,8 @@ function buildFlagReversal(type: 'mark_read' | 'mark_unread') {
 const buildMarkReadReversal = buildFlagReversal('mark_read');
 const buildMarkUnreadReversal = buildFlagReversal('mark_unread');
 
-function buildCreateFolderReversal(
-  _args: unknown[],
-  result: unknown,
-): ReversalSpec | null {
-  const r = result as SingleToolResult<CreateFolderResult>;
-  if (!r.data.created) return null;
-  return { type: 'create_folder', path: r.data.path };
-}
-
-function buildAddLabelsReversal(
-  _args: unknown[],
-  result: unknown,
-): ReversalSpec {
-  const r = result as AddLabelsBatchResult;
-  const entries = r.items
-    .filter(item => item.status === 'succeeded' && item.data)
-    .flatMap(item =>
-      item.data!
-        .filter(d => d.newId !== undefined)
-        .map(d => ({ original: item.id, labelPath: d.labelPath, copy: d.newId! })),
-    );
-  return { type: 'add_labels', entries };
-}
+// buildCreateFolderReversal and buildAddLabelsReversal removed —
+// not tracked until deleteFolder/deleteEmails land (see TODO.md).
 
 // ── Interceptor ──────────────────────────────────────────────────────────────
 

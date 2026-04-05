@@ -256,18 +256,29 @@ All 5 mutating handlers change from `(args, imap: ImapClient)` to `(args, interc
 | 1 | Delegates to interceptor.revertOperations |
 | 2 | Propagates UNKNOWN_OPERATION_ID error |
 
+## Key Design Decision: Idempotency and No-Op Handling
+
+IMAP flag operations are idempotent — adding a flag that already exists or removing one that doesn't both succeed silently. `setFlag` fetches `flagsBefore` for all emails before modifying, skips emails already in the target state, and returns both `flagsBefore` and `flagsAfter` in `FlagResult`. `buildFlagReversal` compares before/after to only include emails whose flags actually changed.
+
+When `buildReversal` returns `null` (all no-ops, or tools without real reversal support like `create_folder`), `@Tracked` records a `{ type: 'noop' }` entry. This ensures `operationId` is **always present** in every mutating tool response — a stable response shape for LLM clients. Reverting a noop is harmless (`stepsSucceeded: 1`).
+
 ## Smoke Tests
 
-1. Move 2 emails → revert → emails back in original mailbox
-2. mark_read 2 emails → revert → \Seen removed
-3. mark_unread 2 emails → revert → \Seen restored
-4. create_folder → revert → folder deleted
-5. add_labels → revert → copies removed from label folders
-6. Chain: move → mark_read → create_folder → revert from move ID → all three reversed
-7. Unknown operation ID → UNKNOWN_OPERATION_ID error
-8. Every mutating tool response includes operationId field
-9. 101 operations → first ID returns UNKNOWN_OPERATION_ID
-10. create_folder with existing path (created: false) → no operationId in response
+| # | Scenario | Expected |
+|---|----------|----------|
+| 1 | `mark_read` on unread emails | `operationId` present, `flagsBefore`/`flagsAfter` show change |
+| 2 | Revert mark_read | `\Seen` removed, `stepsSucceeded: 1` |
+| 3 | `mark_read` on already-read (no-op) | `operationId` present, revert is harmless |
+| 4 | `mark_unread` on read emails | `operationId` present |
+| 5 | Revert mark_unread | `\Seen` restored, `stepsSucceeded: 1` |
+| 6 | `mark_unread` on already-unread (no-op) | `operationId` present, revert is harmless |
+| 7 | `move_emails` to test folder | `operationId` present |
+| 8 | Revert move | Email back in original mailbox |
+| 9 | Chain: `mark_read` → `move_emails` → revert from mark_read ID | Both reversed in order |
+| 10 | Unknown operation ID | `UNKNOWN_OPERATION_ID` error |
+| 11 | `create_folder` | `operationId` present (noop reversal) |
+| 12 | `add_labels` | `operationId` present (noop reversal) |
+| 13 | `create_folder` existing path | `created: false`, `operationId` still present |
 
 ## Implementation Order
 

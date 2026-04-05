@@ -134,6 +134,9 @@ When working a ticket, you cycle through these personas as the orchestrator:
 
 - Project relies heavily on unit & smoke testing
 - Each feature defines smoke tests to ensure it works
+- Test runner: **Jest** (not vitest) with `ts-jest` ESM preset
+- Config: `jest.config.ts` (ESM preset + `.js` extension mapper), `tsconfig.test.json` (adds `"types": ["jest"]`), ESLint has a separate block for `*.test.ts` pointing at `tsconfig.test.json`
+- Run: `npm test` → `node --experimental-vm-modules node_modules/.bin/jest`
 
 # Engineering principles
 
@@ -174,8 +177,21 @@ node dist/index.js --http \          # HTTP mode — requires auth token
   --bridge-password bridge-generated-password \
   --mcp-auth-token your-secret-token
 
+npm run inspector                    # build + start HTTP server + MCP Inspector (auto-opens browser)
 npm run package                      # build + create proton-bridge-mcp.mcpb for Claude Desktop
 ```
+
+### Smoke Testing with MCP Inspector
+
+`npm run inspector` handles everything automatically:
+1. Builds the project
+2. Loads `.env` credentials (uses the stable `PROTONMAIL_MCP_AUTH_TOKEN` from `.env`)
+3. Starts the MCP server in **HTTP mode** (`--http`) on the configured host/port
+4. Copies `Bearer <token>` to clipboard
+5. Launches the MCP Inspector with the server URL pre-configured
+6. Opens the browser to the Inspector UI
+
+**First-time setup only:** The MCP Inspector cannot programmatically pre-fill custom HTTP headers ([upstream limitation](https://github.com/modelcontextprotocol/inspector/issues/879)). On first launch, add an `Authorization` header in the Inspector sidebar and paste the Bearer token from your clipboard. The Inspector persists this in `localStorage` — subsequent restarts reuse the same `.env` token, so no re-entry is needed.
 
 ## CI & Release
 
@@ -219,6 +235,9 @@ All local imports MUST use `.js` extension:
 import { ImapClient } from './bridge/imap.js';  // ✓
 import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 ```
+
+## Zod `.transform()` in MCP Tool Schemas
+The MCP SDK supports Zod `.transform()` in `inputSchema`. The JSON Schema converter uses `pipeStrategy: 'input'`, so clients see the **input** type (e.g. `string`) while handlers receive the **transformed** output (e.g. `EmailId`). Use this for tool input parsing — e.g. `z.string().transform(parseEmailId)`.
 
 ## Technical References
 - **IMAP patterns (locking, batching, groupByMailbox, EmailId):** `docs/IMAP.md`

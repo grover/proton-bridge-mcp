@@ -90,32 +90,17 @@ Note: uses conditional spread for optional `logPath` due to `exactOptionalProper
 Creates a `pino` logger to stderr (fd 2) or a file. Passed to Fastify via `loggerInstance` (cast to `FastifyBaseLogger` for type compatibility).
 
 ### `src/bridge/audit.ts` — `AuditLogger`
-Writes `AuditEntry` JSONL to a **file only** (never stderr). Wraps operations via `audit.wrap()`.
-On batch results, counts items where `result.error !== undefined` → sets `outcome: 'partial'`.
+JSONL audit trail to file (never stderr). See [docs/impl/auditing.md](docs/impl/auditing.md).
 
-### `src/bridge/decorators.ts` — `@Audited`
-TC39 Stage 3 method decorator. Constraints the class to have `audit: AuditLogger` (public field).
-Wraps the decorated method body in `this.audit.wrap(operation, firstArg, fn)`.
+### `src/bridge/decorators.ts` — `@Audited`, `@Tracked`, `@Irreversible`
+Method decorators for audit logging, operation tracking, and irreversible-operation log clearing. See [docs/impl/auditing.md](docs/impl/auditing.md) and [docs/impl/operation-log-revert.md](docs/impl/operation-log-revert.md).
 
 ### `src/bridge/pool.ts` — `ImapConnectionPool`
-**Pool version drain pattern:**
-- `#poolVersion: number` starts at 0
-- Each `PoolEntry = { conn: ImapFlow, version: number }` stamped at creation
-- `drain()` increments `#poolVersion`, closes available entries, waits for in-use to be released
-- `release(conn)`: stale version → close + replenish; current version → return to pool or hand to waiter
-- `verifyConnectivity()`: opens a throwaway connection, sends NOOP, closes it
-
-**Idle timers (setInterval, 10 s check interval):**
-- `idleDrainSecs` (default 30): closes available connections above `min` — `#drainToMin()`
-- `idleTimeoutSecs` (default 300): closes all available connections + bumps pool version — `#drainToZero()`
-- Timer is unref'd (won't prevent process exit); stopped in `stop()`
-- `#lastActivityAt` updated on every `acquire()`
+Manages pooled IMAP connections with version-based drain, idle timers, and automatic replenishment. See [docs/impl/connection-pool.md](docs/impl/connection-pool.md).
 
 ### `src/bridge/imap.ts` — `ImapClient`
-All methods `@Audited`. Internal helper `#fetchByIds` groups `EmailId[]` by mailbox,
-fetches each group under one `getMailboxLock`, then reassembles in input order via a `Map<"mailbox:uid", T>`.
-
-See [docs/IMAP.md](docs/IMAP.md) for imapflow/mailparser type gotchas and IMAP implementation patterns.
+All methods `@Audited`. Uses `groupByMailbox` to minimize lock acquisitions across batch operations.
+See [docs/impl/mailbox-locking.md](docs/impl/mailbox-locking.md) for locking patterns and [docs/IMAP.md](docs/IMAP.md) for type gotchas.
 
 ### `src/http.ts`
 Creates one `McpServer` per client session (not one global instance).
@@ -190,7 +175,7 @@ Checked in Fastify `onRequest` hook. Returns HTTP 401 on mismatch.
 | Stream | Destination | Format | When |
 |---|---|---|---|
 | App logger | stderr or `PROTONMAIL_LOG_PATH` | pino JSON | Startup, shutdown, pool events, errors |
-| Audit log | `PROTONMAIL_AUDIT_LOG_PATH` | JSONL | Every IMAP operation: timestamp, op, duration, sanitized input, outcome |
+| Audit log | `PROTONMAIL_AUDIT_LOG_PATH` | JSONL | Every IMAP operation — see [docs/impl/auditing.md](docs/impl/auditing.md) |
 | Fastify/MCP | stderr (built-in) | pino JSON | HTTP requests, framework internals |
 
 ## Session Lifecycle

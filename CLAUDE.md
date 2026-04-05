@@ -8,7 +8,7 @@ Consult `README.md` for user facing project details
 
 - Project is a background daemon
 - Good logging in code necessary for diagnostics
-- Every public `ImapClient` method must use `@Audited('operation_name')` — see `ARCHITECTURE.md` "decorators.ts" for mechanics.
+- Every public `ImapClient` method must use `@Audited('operation_name')` — see `docs/impl/auditing.md` for mechanics.
 
 ### Operation modes
 - **STDIO (default):** no flags needed; `src/stdio.ts` connects one `McpServer` to `StdioServerTransport`
@@ -18,22 +18,11 @@ Consult `README.md` for user facing project details
 - `ImapClient` and `ImapConnectionPool` are shared singletons across all modes
 
 
-### Standardized Tool Result Structure
-- All tool responses include a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
-  - **Batch tools:** `BatchToolResult<T>` — `{ status, items: BatchItemResult<T>[] }` with per-item `status: ItemStatus`
-  - **List tools:** `ListToolResult<T>` — `{ status: 'succeeded', items: T[] }` (throw on failure)
-  - **Single tools:** `SingleToolResult<T>` — `{ status, data: T }`
-  - Use `batchStatus(items)` utility to compute top-level status from per-item results.
-
-### Choosing a Result Type
-- **BatchToolResult<T>**: Operations on `EmailId[]` where individual items can fail independently (move, mark, add_labels)
-- **ListToolResult<T>**: Read operations returning collections that either fully succeed or throw (list_mailbox, get_folders, fetch_summaries, search_mailbox)
-- **SingleToolResult<T>**: Operations on a single entity or returning a single result (fetch_attachment, verify_connectivity, drain_connections, create_folder)
+### Tool Result Structure
+See `docs/impl/mcp-tool-interfaces.md` for the result type system (`BatchToolResult`, `ListToolResult`, `SingleToolResult`), `batchStatus()` utility, and selection guidelines.
 
 ### Tool Annotations
-- All tools must declare `annotations` with `readOnlyHint` and `destructiveHint` booleans.
-- Three annotation presets defined in `src/server.ts`: `READ_ONLY`, `MUTATING`, `DESTRUCTIVE`.
-- See `docs/tools/README.md` for per-tool annotation values.
+See `docs/impl/mcp-tool-interfaces.md` for annotation presets (`READ_ONLY`, `MUTATING`, `DESTRUCTIVE`), classification rationale, and `openWorldHint` guidelines. See `docs/tools/README.md` for per-tool annotation values.
 
 ### Tool Categories
 Tools belong to one of four categories (used by `--disabled-tools` and for annotation selection):
@@ -56,10 +45,13 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 - **Smoke test failures:** Capture in GitHub issue acceptance criteria; repeat all prior failures when re-testing
 - **Numbered workflows:** Are enforceable and cannot skip
 - **Auto-update rule:** After each major code changes, new patterns, or learnings, update `CLAUDE.md`, `ARCHITECTURE.md`, or other documentation file.
-- **PRD commits:** When committing a PRD, always update `docs/ROADMAP.md` in the same commit.
 - **App logger** (`src/logger.ts`): pino → stderr (default) or `PROTONMAIL_LOG_PATH`
 - **Audit logger** (`src/bridge/audit.ts`): JSONL → `PROTONMAIL_AUDIT_LOG_PATH` (file only, **never stderr**)
 - stderr is reserved for operational/MCP/Fastify output
+- **Interface-based tool handlers:** Tool handlers depend on `ReadOnlyMailOps` / `MutatingMailOps` interfaces, never concrete `ImapClient` or `OperationLogInterceptor`. See `docs/impl/mcp-tool-interfaces.md`.
+- **Small commits:** Commit after each logical unit of work (one file, one feature, one test group). Do not batch unrelated changes.
+- **Deferred work → GitHub issue:** When work is identified but not in scope ("later", "future", "separate task"), immediately file a GitHub issue with context, rationale, and acceptance criteria so the user can schedule it. Never just mention deferred work in passing — always create a trackable issue.
+- **Doc deduplication:** When creating new docs in `docs/`, clean up `CLAUDE.md`, `ARCHITECTURE.md`, and other docs — replace duplicated content with cross-references to the new canonical source.
 
 # Orchestrator Workflow
 
@@ -72,9 +64,10 @@ When working a ticket, you cycle through these personas as the orchestrator:
 5. Spins up EDD workflow
 6. Commits EDD, pushes branch
 7. Spins up ticket workflow
-8. **User smoke tests** - **Orchestrator** show what they're testing, test cases, previously failed tests in status dashboard
-9. **Orchestrator** commits, pushes, creates PR
-10. Ensures learnings are written to `CLAUDE.md`, `ARCHITECTURE.md` and `CHANGELOG.md` other files
+8. **Orchestrator** must ask the **User** to smoke test. Do not skip this step. **Orchestrator** can only continue after **User** confirmed the changes. Inform **User** of: summary of changes, test cases, previously related failed tests (if any).
+9. Sync any learnings from memory into `CLAUDE.md` and clear the memory — conventions belong in project docs, not in ephemeral memory.
+10. **Orchestrator** commits, pushes, creates PR
+11. Ensures learnings are written to `CLAUDE.md`, `ARCHITECTURE.md` and `CHANGELOG.md` other files
 11. User requests refactorings / bug fixes / changes at this stage: Create a ticket and start working on that
 
 ## Quality engineer (QE) persona
@@ -121,6 +114,7 @@ When working a ticket, you cycle through these personas as the orchestrator:
 - Branch type is bug | feat | refactor -> analyze issue description to determine type
 - Repository uses GitHub flow
 - New branches always taken from latest `main` branch
+- **Isolate independent changes:** Unrelated work (e.g., tooling fixes, doc updates) goes on its own branch from `origin/main`, never mixed into a feature branch.
 
 ## Concurrent agent safety
 
@@ -139,11 +133,50 @@ Assume another agent is working in the same repository at all times.
 4. **Verify branch state after checkout** — `git log --oneline -3` to confirm HEAD is where you expect.
 5. **Keep branches short-lived and narrowly scoped** — reduces collision surface with other agents.
 6. **Don't rewrite history on shared branches without fetching first** — another agent may have pushed since your last fetch.
+7. **No destructive git commands** — never use `git checkout -- .`, `git reset --hard`, `git clean -fd`, or `git push --force`. The user may have in-progress edits. Use `git stash`, `git rebase`, or `git revert` instead.
 
-# Document naming in `docs/plans/`
+# Documents in `docs/plans/`
 
-- **PRDs:** `prd-{milestone}-{feature}.md` — product requirement documents scoped to a milestone (e.g. `prd-m4-disabled-tools.md`)
-- **EDDs:** `edd-{issue#}-{title}.md` — engineering design documents tied to a GitHub issue (e.g. `edd-35-email-id-refactor.md`)
+## PRD — Product Requirements Document
+
+**File:** `prd-{milestone}-{feature}.md` — scoped to a milestone (e.g. `prd-m4-disabled-tools.md`)
+
+A PRD defines **what** to build and **why**. It is the single source of truth for a milestone feature set. When committing a PRD, always update `docs/ROADMAP.md` in the same commit.
+
+### Required sections
+
+1. **Context** — Why this feature is needed. What problem it solves. What prompted it.
+2. **Design Decisions** — Table of key architectural choices made upfront (Topic | Decision). These drive all downstream implementation.
+3. **Feature Specification** — Per-feature subsections, each with:
+   - Goal (1–2 sentences)
+   - Tool specification: name, description, parameters, return type, error conditions
+   - Configuration: CLI flags, env vars, defaults (table format)
+   - Examples (bash commands, JSON config)
+4. **Corner Cases** — Table of edge cases and expected behavior (Scenario | Behavior).
+5. **Implementation Guidelines** — Grouped by architectural layer (config, tool registration, documentation, tests).
+6. **What This Is NOT** — Explicit scope boundaries to prevent scope creep.
+
+## EDD — Engineering Design Document
+
+**File:** `edd-{issue#}-{title}.md` — tied to a single GitHub issue (e.g. `edd-35-email-id-refactor.md`)
+
+An EDD defines **how** to implement a specific issue. It is code-centric — showing actual TypeScript snippets, not pseudocode. The EDD is the spec that the SWE implements and the QE writes tests against.
+
+### Required sections
+
+1. **References** — Link to the parent PRD and the GitHub issue this EDD implements.
+2. **Goal** — 1–2 sentences. What this change achieves.
+3. **Approach** — 1–2 sentences. High-level strategy (e.g. "use a JSON replacer" or "GoF Decorator pattern").
+4. **Alternatives Considered** — Other approaches evaluated and why they were rejected. Forces critical thinking and preserves decision rationale for future developers.
+5. **Changes** — Per-file or per-module subsections with actual code snippets showing what will be added or modified. Include type signatures.
+6. **Files Changed** — Inventory table listing every affected file and the change (File | Change).
+7. **What Does NOT Change** — Explicit list of untouched areas to clarify scope.
+8. **Edge Cases** — Concrete examples with input/output (e.g. "Mailbox with colons: `Folders/My:Project:123`").
+9. **Smoke Test Scenarios** — Numbered, concrete, action-oriented scenarios. Each states the action, expected result, and what it validates. These are integration-level, not unit tests.
+
+### Maintaining EDDs
+
+EDDs are living documents. When refactoring changes the implementation, always propose updating the EDD. **Preserve historical context** — describe deviations from the original design rather than overwriting it. Use a "Deviations" subsection or inline notes (e.g. "Originally X, changed to Y because Z") so the rationale trail is not lost.
 
 # EDD workflow
 
@@ -157,7 +190,7 @@ Assume another agent is working in the same repository at all times.
 
 # Ticket workflow
 
-1. As a **SWE**, you implement empty skeleton (no functionality)
+1. As a **SWE**, you implement empty skeleton — stubs that throw `Error('Not implemented')`, no working logic. Build must pass but all tests must fail (RED).
 2. As a **QE**, you implement unit tests per EDD against skeleton
 3. As a **QE**, you verify that all new tests fail
 4. As a **SWE**, you review tests, then red-green-refactor cycle:

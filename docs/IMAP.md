@@ -13,9 +13,8 @@ This document is the canonical reference for IMAP-level implementation patterns 
 
 ## Batch Operations + Index Stability
 
-- All `ImapClient` methods taking `EmailId[]` preserve input order in results.
-- `BatchItemResult<T>[]` ops: result[i] ↔ input[i], with success or `{ code, message }` error.
-- Internals: group IDs by mailbox → one `getMailboxLock` per group → reorder before return.
+All `ImapClient` batch methods preserve input order in results.
+See [docs/impl/mailbox-locking.md](../impl/mailbox-locking.md) for the `groupByMailbox` pattern and result ordering strategies.
 
 ## Batch Contract
 
@@ -26,31 +25,12 @@ This document is the canonical reference for IMAP-level implementation patterns 
 
 ## IMAP Mailbox Lock
 
-```typescript
-const conn = await this.pool.acquire();
-const lock = await conn.getMailboxLock(mailbox);
-try {
-  // IMAP operations
-} finally {
-  lock.release();       // always release lock first
-  this.pool.release(conn);  // then return connection to pool
-}
-```
+See [docs/impl/mailbox-locking.md](../impl/mailbox-locking.md) for the full locking pattern, lock/release ordering invariant, and edge cases.
 
-## groupByMailbox Pattern (`src/bridge/imap.ts`)
+## groupByMailbox Pattern
 
-- **Important:** Used to reduce mailbox locks
-- Returns `MailboxGroup[]` with pre-computed indices for O(n) result placement:
-```typescript
-interface MailboxGroup { mailbox: string; entries: Array<{ index: number; id: EmailId }> }
-```
-- Callers use `entry.index` for result placement — never `indexOf`.
+See [docs/impl/mailbox-locking.md](../impl/mailbox-locking.md) for the complete `groupByMailbox` specification.
 
-## imapflow Type Gotchas
+## Type Gotchas
 
-- `conn.mailbox` is `false | MailboxObject` — guard with `conn.mailbox !== false`
-- `messageMove()` returns `CopyResponseObject | false` — `uidMap` is `Map<number,number>`, use `.get()`
-
-## mailparser Type Gotcha
-
-- `ParsedMail.html` is `string | false` — use `|| undefined`, not `?? undefined`
+See [docs/impl/imap-error-handling.md](../impl/imap-error-handling.md) § "imapflow/mailparser Type Quirks" for `conn.mailbox`, `messageMove()`, and `ParsedMail.html` gotchas.

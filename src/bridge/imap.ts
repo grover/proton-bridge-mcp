@@ -79,6 +79,12 @@ export class ImapClient {
       if (isAlreadyExistsError(err)) {
         return { path, created: false };
       }
+      // Proton Bridge sends bare NO without ALREADYEXISTS code.
+      // Verify by checking if the mailbox exists on the server.
+      const mailboxes = await conn.list();
+      if (mailboxes.some(mb => mb.path === path)) {
+        return { path, created: false };
+      }
       throw err;
     } finally {
       this.#pool.release(conn);

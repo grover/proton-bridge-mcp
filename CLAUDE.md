@@ -236,7 +236,7 @@ When the **User** reports a bug during smoke testing:
 
 # Engineering principles
 
-- Apply TDD
+- **Apply TDD — no exceptions.** Every new behavior, bug fix, or feature change MUST follow red-green-refactor: (1) write the test first, (2) verify it fails (RED), (3) implement until it passes (GREEN), (4) refactor. This applies to all code changes — initial implementation, mid-flight additions, and scope expansions discovered during development. Never write implementation code before its test exists and has been verified to fail. Skipping TDD is a process violation even when the end result is correct.
 - Clean code (Uncle Bob): SRP, DRY, meaningful names, no dead code, early returns, small functions, readable file structure
 - Accurate minimal code documentation
 - Fail fast: Write code with fail-fast logic by default. Do not swallow exceptions with errors or warnings

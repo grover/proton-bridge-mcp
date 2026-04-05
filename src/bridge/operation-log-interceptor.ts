@@ -84,7 +84,7 @@ function buildRemoveLabelsReversal(
     .flatMap(item =>
       (item.data ?? [])
         .filter(removal => removal.removed)
-        .map(removal => ({ original: item.id, labelPath: removal.labelPath })),
+        .map(removal => ({ original: item.id, labelPath: `Labels/${removal.labelName}` })),
     );
   if (entries.length === 0) return null;
   return { type: 'remove_labels', entries };

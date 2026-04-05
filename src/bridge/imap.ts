@@ -476,13 +476,15 @@ export class ImapClient {
       }
 
       // Phase 2: Remove from each label folder
-      const pushResult = (i: number, labelPath: string, removed: boolean) => {
+      const pushResult = (i: number, labelName: string, removed: boolean) => {
         const existing = items[i]!.data ?? [];
-        existing.push({ labelPath, removed });
+        existing.push({ labelName, removed });
         items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
       };
 
-      for (const labelPath of labelPaths) {
+      for (let j = 0; j < labelPaths.length; j++) {
+        const labelPath = labelPaths[j]!;
+        const labelName = labelNames[j]!;
         let lock;
         try {
           lock = await conn.getMailboxLock(labelPath);
@@ -491,7 +493,7 @@ export class ImapClient {
             items[i] = {
               id: ids[i]!,
               status: 'failed',
-              error: { code: 'LABEL_NOT_FOUND', message: `Label folder ${labelPath} does not exist` },
+              error: { code: 'LABEL_NOT_FOUND', message: `Label ${labelName} does not exist` },
             };
           }
           continue;
@@ -500,7 +502,7 @@ export class ImapClient {
           for (let i = 0; i < ids.length; i++) {
             const msgId = messageIds.get(i);
             if (!msgId) {
-              pushResult(i, labelPath, false);
+              pushResult(i, labelName, false);
               continue;
             }
 
@@ -511,12 +513,12 @@ export class ImapClient {
               );
 
               if (!uids || uids.length === 0) {
-                pushResult(i, labelPath, false);
+                pushResult(i, labelName, false);
                 continue;
               }
 
               await conn.messageDelete(String(uids[0]), { uid: true });
-              pushResult(i, labelPath, true);
+              pushResult(i, labelName, true);
             } catch (err) {
               items[i] = {
                 id: ids[i]!,

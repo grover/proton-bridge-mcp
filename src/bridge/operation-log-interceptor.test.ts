@@ -441,7 +441,7 @@ describe('OperationLogInterceptor', () => {
           {
             id: eid(1),
             status: 'succeeded',
-            data: [{ labelPath: 'Labels/Work', removed: true }],
+            data: [{ labelName: 'Work', removed: true }],
           },
         ],
       };
@@ -463,16 +463,16 @@ describe('OperationLogInterceptor', () => {
             id: eid(1),
             status: 'succeeded',
             data: [
-              { labelPath: 'Labels/Work', removed: true },
-              { labelPath: 'Labels/Personal', removed: false },
+              { labelName: 'Work', removed: true },
+              { labelName: 'Personal', removed: false },
             ],
           },
           {
             id: eid(2),
             status: 'succeeded',
             data: [
-              { labelPath: 'Labels/Work', removed: true },
-              { labelPath: 'Labels/Personal', removed: true },
+              { labelName: 'Work', removed: true },
+              { labelName: 'Personal', removed: true },
             ],
           },
         ],
@@ -502,7 +502,7 @@ describe('OperationLogInterceptor', () => {
           {
             id: eid(1),
             status: 'succeeded',
-            data: [{ labelPath: 'Labels/Work', removed: false }],
+            data: [{ labelName: 'Work', removed: false }],
           },
         ],
       };
@@ -760,14 +760,14 @@ describe('OperationLogInterceptor', () => {
             id: eid(1),
             status: 'succeeded',
             data: [
-              { labelPath: 'Labels/Work', removed: true },
-              { labelPath: 'Labels/Personal', removed: true },
+              { labelName: 'Work', removed: true },
+              { labelName: 'Personal', removed: true },
             ],
           },
           {
             id: eid(2),
             status: 'succeeded',
-            data: [{ labelPath: 'Labels/Work', removed: true }],
+            data: [{ labelName: 'Work', removed: true }],
           },
         ],
       };

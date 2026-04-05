@@ -41,7 +41,7 @@ describe('handleRemoveLabels', () => {
         {
           id: { uid: 1, mailbox: 'INBOX' },
           status: 'succeeded',
-          data: [{ labelPath: 'Labels/Work', removed: true }],
+          data: [{ labelName: 'Work', removed: true }],
         },
       ],
     };

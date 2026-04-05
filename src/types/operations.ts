@@ -86,7 +86,7 @@ export type AddLabelsBatchResult = BatchToolResult<AddLabelsItemData[]>;
 
 /** Result of removing a single label from one email */
 export interface RemoveLabelResult {
-  labelPath: string;
+  labelName: string;   // plain name, no "Labels/" prefix
   removed:   boolean;  // false if email was not in this label
 }
 

@@ -524,8 +524,8 @@ Remove one or more Proton Mail labels from a batch of emails. Removes the email 
     {
       "id": "INBOX:42",
       "data": [
-        { "labelPath": "Labels/Work", "removed": true },
-        { "labelPath": "Labels/Personal", "removed": false }
+        { "labelName": "Work", "removed": true },
+        { "labelName": "Personal", "removed": false }
       ]
     },
     {

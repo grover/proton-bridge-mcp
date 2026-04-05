@@ -88,7 +88,7 @@ describe('ImapClient.removeLabels', () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]!.status).toBe('succeeded');
     expect(result.items[0]!.data).toEqual([
-      { labelPath: 'Labels/Work', removed: true },
+      { labelName: 'Work', removed: true },
     ]);
     expect(conn.messageDelete).toHaveBeenCalledWith('42', { uid: true });
   });
@@ -108,7 +108,7 @@ describe('ImapClient.removeLabels', () => {
     expect(result.status).toBe('succeeded');
     expect(result.items[0]!.status).toBe('succeeded');
     expect(result.items[0]!.data).toEqual([
-      { labelPath: 'Labels/Work', removed: false },
+      { labelName: 'Work', removed: false },
     ]);
     expect(conn.messageDelete).not.toHaveBeenCalled();
   });
@@ -137,12 +137,12 @@ describe('ImapClient.removeLabels', () => {
 
     expect(result.status).toBe('succeeded');
     expect(result.items[0]!.data).toEqual([
-      { labelPath: 'Labels/LabelA', removed: true },
-      { labelPath: 'Labels/LabelB', removed: true },
+      { labelName: 'LabelA', removed: true },
+      { labelName: 'LabelB', removed: true },
     ]);
     expect(result.items[1]!.data).toEqual([
-      { labelPath: 'Labels/LabelA', removed: true },
-      { labelPath: 'Labels/LabelB', removed: false },
+      { labelName: 'LabelA', removed: true },
+      { labelName: 'LabelB', removed: false },
     ]);
   });
 
@@ -178,7 +178,7 @@ describe('ImapClient.removeLabels', () => {
 
     expect(result.items[0]!.status).toBe('succeeded');
     expect(result.items[0]!.data).toEqual([
-      { labelPath: 'Labels/Work', removed: false },
+      { labelName: 'Work', removed: false },
     ]);
     expect(conn.search).not.toHaveBeenCalled();
   });
@@ -200,7 +200,7 @@ describe('ImapClient.removeLabels', () => {
     expect(result.items[0]!.status).toBe('failed');
     expect(result.items[0]!.error).toEqual({
       code: 'LABEL_NOT_FOUND',
-      message: 'Label folder Labels/NonExistent does not exist',
+      message: 'Label NonExistent does not exist',
     });
   });
 

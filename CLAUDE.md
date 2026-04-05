@@ -31,11 +31,21 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 |---|---|---|
 | **read** | `READ_ONLY` | `get_folders`, `get_labels`, `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
 | **mutating** | `MUTATING` | `create_folder`, `mark_read`, `mark_unread`, `add_labels` |
-| **destructive** | `DESTRUCTIVE` | `move_emails` |
+| **destructive** | `DESTRUCTIVE` | `move_emails`, `revert_operations` |
 | **maintenance** | `READ_ONLY` | `verify_connectivity`, `drain_connections` |
 
 - **Maintenance** tools are idempotent, non-destructive operations on the IMAP connection pool — they do not affect the Proton Mail inbox. See `src/tools/verify-connectivity.ts` and `src/tools/drain-connections.ts`.
 - When adding a new tool, assign it to the appropriate category and update `TOOL_CATEGORIES` in the source.
+
+### Operation Log and Revert
+See [docs/impl/operation-log-revert.md](docs/impl/operation-log-revert.md) for full design rationale, architecture, and implementation guide.
+- Tracked tools (`move_emails`, `mark_read`, `mark_unread`) return `operationId` in responses
+- `revert_operations` undoes a range of operations in reverse chronological order (best-effort)
+- Not yet tracked: `create_folder`, `add_labels` (see TODO.md)
+
+### Interface Segregation
+- Tool handlers depend on **interfaces** (`ReadOnlyMailOps`, `MutatingMailOps` in `src/types/mail-ops.ts`), not concrete classes.
+- Only entry points (`src/index.ts`) instantiate concrete `ImapClient` and `OperationLogInterceptor`.
 
 
 # Conventions

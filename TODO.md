@@ -10,6 +10,7 @@
 ## Features
 - [ ] Add `@Tracked` to `createFolder` — requires `deleteFolder` on ImapClient (separate branch)
 - [ ] Add `@Tracked` to `addLabels` — requires `deleteEmails` on ImapClient (separate branch)
+- [ ] Add `@Audited` to `revertOperations` — currently individual IMAP ops are audited via ImapClient but the top-level revert is not
 - [ ] Idempotency hints on tool annotations
 
 ## Security

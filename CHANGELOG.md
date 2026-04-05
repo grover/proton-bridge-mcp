@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `add_labels` MCP tool — add one or more Proton Mail labels to a batch of emails via IMAP COPY; returns per-email results including new UIDs in label folders
 - `AddLabelsBatchResult`, `AddLabelsItemData` types in `src/types/operations.ts`
 - `create_folder` MCP tool — creates new mail folders under `Folders/` with recursive nested path support (e.g. `Folders/Work/Projects`); returns whether the folder was newly created or already existed
+- `revert_operations` MCP tool — reverses `move_emails`, `mark_read`, and `mark_unread` operations in reverse chronological order; best-effort with per-step status reporting
+- `OperationLog` in-memory ring buffer (max 100 entries, monotonic IDs, FIFO eviction) for tracking mutating operations
+- `OperationLogInterceptor` — GoF Decorator wrapping ImapClient; tracked mutating methods return `operationId` in responses
+- `@Tracked` and `@Irreversible` decorators for operation log integration
+- `ReadOnlyMailOps` and `MutatingMailOps` interfaces — tool handlers depend on interfaces, not concrete classes
+- `ReversalSpec`, `OperationRecord`, `RevertStepResult`, `RevertResult` types in `src/types/operations.ts`
+- 44 unit tests across OperationLog, decorators, interceptor, and revert-operations tool
 - `ToolStatus`, `ItemStatus`, `BatchToolResult<T>`, `ListToolResult<T>`, `SingleToolResult<T>` types for standardized tool responses
 - `batchStatus()` utility to compute top-level status from per-item statuses
 - `status: ItemStatus` field on `BatchItemResult<T>` for per-item success/failure tracking

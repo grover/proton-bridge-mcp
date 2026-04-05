@@ -59,6 +59,4 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
       - run: npm ci
-      # --if-present passes silently when no "test" script is defined.
-      # Replace the stub in package.json with "vitest run" to activate.
-      - run: npm run test --if-present
+      - run: npm test

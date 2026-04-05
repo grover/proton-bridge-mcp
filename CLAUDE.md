@@ -162,7 +162,7 @@ npm install
 npm run build          # compile TypeScript → dist/
 npm run dev            # tsx watch (no compile, restarts on change)
 npm run lint           # ESLint with type-aware parsing
-npm test               # stub — replace with vitest when tests are added
+npm test               # Jest with ts-jest (ESM)
 
 node dist/index.js --verify          # test IMAP connectivity then exit
 node dist/index.js \                 # STDIO mode (default) — minimum required args
@@ -182,7 +182,7 @@ npm run package                      # build + create proton-bridge-mcp.mcpb for
 ### CI (`.github/workflows/ci.yml`)
 Runs on every PR and push to `main`. Three parallel jobs: **Lint**, **Build**, **Test**.
 - `Lint` and `Build` jobs are non-trivial (type-aware ESLint = tsc runs inside eslint)
-- `Test` uses `--if-present`; becomes active once `"test": "vitest run"` is in `package.json`
+- `Test` runs Jest via `npm test` (ESM mode with `--experimental-vm-modules`)
 - `Build` uploads `dist/` as an artifact (SHA-keyed, 7-day retention)
 - Concurrency: cancels in-progress PR runs on new push; `main` pushes never cancel each other
 

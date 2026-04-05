@@ -1,19 +1,15 @@
-import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { ListToolResult, EmailMessage } from '../types/index.js';
-
-const emailIdSchema = z.object({
-  uid:     z.number().int().positive().describe('IMAP UID'),
-  mailbox: z.string().min(1).describe('Mailbox name'),
-});
+import type { EmailId, ListToolResult, EmailMessage } from '../types/index.js';
+import { emailIdStringSchema } from '../types/index.js';
+import { z } from 'zod';
 
 export const fetchMessageSchema = {
-  ids: z.array(emailIdSchema).min(1).max(20)
+  ids: z.array(emailIdStringSchema).min(1).max(20)
     .describe('List of email IDs to fetch. Returns text/HTML body and attachment metadata (not content).'),
 };
 
 export async function handleFetchMessage(
-  args: { ids: Array<{ uid: number; mailbox: string }> },
+  args: { ids: EmailId[] },
   imap: ImapClient,
 ): Promise<ListToolResult<EmailMessage>> {
   const items = await imap.fetchMessage(args.ids);

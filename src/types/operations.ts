@@ -68,8 +68,10 @@ export interface MoveResult {
 
 /** Result of a flag operation */
 export interface FlagResult {
+  /** Full set of IMAP flags before the operation */
+  flagsBefore: string[];
   /** Full set of IMAP flags after the operation */
-  flagsAfter: string[];
+  flagsAfter:  string[];
 }
 
 /** Result of a single label application to one email */
@@ -90,3 +92,38 @@ export interface CreateFolderResult {
 
 export type MoveBatchResult = BatchItemResult<MoveResult>[];
 export type FlagBatchResult = BatchItemResult<FlagResult>[];
+
+// ── Reversal specifications ───────────────────────────────────────────────────
+
+export type ReversalSpec =
+  | { type: 'noop' }
+  | { type: 'move_batch';    moves:   Array<{ from: EmailId; to: EmailId }> }
+  | { type: 'mark_read';     ids:     EmailId[] }
+  | { type: 'mark_unread';   ids:     EmailId[] }
+  | { type: 'create_folder'; path:    string }
+  | { type: 'add_labels';    entries: Array<{ original: EmailId; labelPath: string; copy: EmailId }> };
+
+// ── Operation record ──────────────────────────────────────────────────────────
+
+export interface OperationRecord {
+  id:        number;
+  tool:      string;
+  reversal:  ReversalSpec;
+  timestamp: string;   // ISO 8601
+}
+
+// ── Revert result types ───────────────────────────────────────────────────────
+
+export interface RevertStepResult {
+  operationId: number;
+  tool:        string;
+  status:      ToolStatus;
+  error?:      string;
+}
+
+export interface RevertResult {
+  stepsTotal:     number;
+  stepsSucceeded: number;
+  stepsFailed:    number;
+  steps:          RevertStepResult[];
+}

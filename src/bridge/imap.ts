@@ -301,19 +301,36 @@ export class ImapClient {
       const conn = await this.#pool.acquire();
       const lock = await conn.getMailboxLock(mailbox);
       try {
+        // Fetch current flags for all emails in this group
+        const uidSet = entries.map(e => String(e.id.uid)).join(',');
+        const currentFlags = new Map<number, string[]>();
+        for await (const msg of conn.fetch(uidSet, { uid: true, flags: true }, { uid: true })) {
+          currentFlags.set(msg.uid, msg.flags ? [...msg.flags] : []);
+        }
+
         for (const { index, id } of entries) {
           try {
+            const flagsBefore = currentFlags.get(id.uid) ?? [];
+            const hasFlag = flagsBefore.includes(flag);
+
+            // Skip if already in the target state
+            if ((add && hasFlag) || (!add && !hasFlag)) {
+              results[index] = { id, status: 'succeeded', data: { flagsBefore, flagsAfter: [...flagsBefore] } };
+              continue;
+            }
+
             if (add) {
               await conn.messageFlagsAdd(String(id.uid), [flag], { uid: true });
             } else {
               await conn.messageFlagsRemove(String(id.uid), [flag], { uid: true });
             }
+
             // Fetch updated flags
             const flagsAfter: string[] = [];
             for await (const msg of conn.fetch(String(id.uid), { uid: true, flags: true }, { uid: true })) {
               flagsAfter.push(...(msg.flags ? [...msg.flags] : []));
             }
-            results[index] = { id, status: 'succeeded', data: { flagsAfter } };
+            results[index] = { id, status: 'succeeded', data: { flagsBefore, flagsAfter } };
           } catch (err) {
             results[index] = {
               id,

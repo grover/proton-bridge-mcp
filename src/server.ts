@@ -1,22 +1,23 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { ImapClient }         from './bridge/imap.js';
-import type { ImapConnectionPool } from './bridge/pool.js';
+import type { ImapConnectionPool }  from './bridge/pool.js';
+import type { ReadOnlyMailOps, MutatingMailOps } from './types/mail-ops.js';
 import { isEmailId, formatEmailId } from './types/email.js';
 import {
-  getFoldersSchema,         handleGetFolders,
-  createFolderSchema,       handleCreateFolder,
-  listMailboxSchema,        handleListMailbox,
-  fetchSummariesSchema,     handleFetchSummaries,
-  fetchMessageSchema,       handleFetchMessage,
-  fetchAttachmentSchema,    handleFetchAttachment,
-  searchMailboxSchema,      handleSearchMailbox,
-  moveEmailsSchema,         handleMoveEmails,
-  markReadSchema,           handleMarkRead,
-  markUnreadSchema,         handleMarkUnread,
-  verifyConnectivitySchema, handleVerifyConnectivity,
-  drainConnectionsSchema,   handleDrainConnections,
-  addLabelsSchema,          handleAddLabels,
-  getLabelsSchema,          handleGetLabels,
+  getFoldersSchema,             handleGetFolders,
+  createFolderSchema,           handleCreateFolder,
+  listMailboxSchema,            handleListMailbox,
+  fetchSummariesSchema,         handleFetchSummaries,
+  fetchMessageSchema,           handleFetchMessage,
+  fetchAttachmentSchema,        handleFetchAttachment,
+  searchMailboxSchema,          handleSearchMailbox,
+  moveEmailsSchema,             handleMoveEmails,
+  markReadSchema,               handleMarkRead,
+  markUnreadSchema,             handleMarkUnread,
+  verifyConnectivitySchema,     handleVerifyConnectivity,
+  drainConnectionsSchema,       handleDrainConnections,
+  addLabelsSchema,              handleAddLabels,
+  getLabelsSchema,              handleGetLabels,
+  revertOperationsSchema,       handleRevertOperations,
 } from './tools/index.js';
 
 function toText(data: unknown): string {
@@ -32,11 +33,13 @@ const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true  } as const;
 
 /**
  * Creates a new McpServer with all tools registered.
- * Called once per HTTP session — the ImapClient and ImapConnectionPool are shared singletons.
+ * Called once per HTTP session — the ImapClient, ImapConnectionPool, and
+ * OperationLogInterceptor are shared singletons.
  */
 export function createMcpServer(
-  imap: ImapClient,
-  pool: ImapConnectionPool,
+  readOps: ReadOnlyMailOps,
+  pool:    ImapConnectionPool,
+  mutOps:  MutatingMailOps,
 ): McpServer {
   const server = new McpServer({
     name:    'proton-bridge-mcp',
@@ -51,7 +54,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async () => ({
-      content: [{ type: 'text', text: toText(await handleGetFolders(imap)) }],
+      content: [{ type: 'text', text: toText(await handleGetFolders(readOps)) }],
     }),
   );
 
@@ -63,7 +66,7 @@ export function createMcpServer(
       annotations: MUTATING,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleCreateFolder(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleCreateFolder(args, mutOps)) }],
     }),
   );
 
@@ -75,7 +78,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleListMailbox(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleListMailbox(args, readOps)) }],
     }),
   );
 
@@ -87,7 +90,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleFetchSummaries(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleFetchSummaries(args, readOps)) }],
     }),
   );
 
@@ -99,7 +102,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleFetchMessage(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleFetchMessage(args, readOps)) }],
     }),
   );
 
@@ -111,7 +114,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleFetchAttachment(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleFetchAttachment(args, readOps)) }],
     }),
   );
 
@@ -123,7 +126,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleSearchMailbox(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleSearchMailbox(args, readOps)) }],
     }),
   );
 
@@ -135,7 +138,7 @@ export function createMcpServer(
       annotations: DESTRUCTIVE,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleMoveEmails(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleMoveEmails(args, mutOps)) }],
     }),
   );
 
@@ -147,7 +150,7 @@ export function createMcpServer(
       annotations: MUTATING,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleMarkRead(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleMarkRead(args, mutOps)) }],
     }),
   );
 
@@ -159,7 +162,7 @@ export function createMcpServer(
       annotations: MUTATING,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleMarkUnread(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleMarkUnread(args, mutOps)) }],
     }),
   );
 
@@ -195,7 +198,7 @@ export function createMcpServer(
       annotations: READ_ONLY,
     },
     async () => ({
-      content: [{ type: 'text', text: toText(await handleGetLabels(imap)) }],
+      content: [{ type: 'text', text: toText(await handleGetLabels(readOps)) }],
     }),
   );
 
@@ -207,7 +210,19 @@ export function createMcpServer(
       annotations: MUTATING,
     },
     async (args) => ({
-      content: [{ type: 'text', text: toText(await handleAddLabels(args, imap)) }],
+      content: [{ type: 'text', text: toText(await handleAddLabels(args, mutOps)) }],
+    }),
+  );
+
+  server.registerTool(
+    'revert_operations',
+    {
+      description: 'Reverse all operations from the most recent back to and including the specified operation ID, in reverse chronological order. This is a destructive operation: emails may be moved, folders deleted, and flags changed. Fails with UNKNOWN_OPERATION_ID if the given ID is not in the log.',
+      inputSchema: revertOperationsSchema,
+      annotations: DESTRUCTIVE,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleRevertOperations(args, mutOps)) }],
     }),
   );
 

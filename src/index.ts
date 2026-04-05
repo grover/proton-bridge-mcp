@@ -4,9 +4,11 @@ import { loadConfig }         from './config.js';
 import { createLogger }       from './logger.js';
 import { AuditLogger }        from './bridge/audit.js';
 import { ImapConnectionPool } from './bridge/pool.js';
-import { ImapClient }         from './bridge/imap.js';
-import { createHttpApp }      from './http.js';
-import { runStdioServer }     from './stdio.js';
+import { ImapClient }              from './bridge/imap.js';
+import { OperationLog }            from './bridge/operation-log.js';
+import { OperationLogInterceptor } from './bridge/operation-log-interceptor.js';
+import { createHttpApp }           from './http.js';
+import { runStdioServer }          from './stdio.js';
 
 async function main(): Promise<void> {
   const config = loadConfig(process.argv);
@@ -33,7 +35,9 @@ async function main(): Promise<void> {
   // ── Normal startup ────────────────────────────────────────────────────────
   await pool.start();
 
-  const imap = new ImapClient(pool, audit, logger);
+  const imap        = new ImapClient(pool, audit, logger);
+  const opLog       = new OperationLog(config.operationLog.maxSize);
+  const interceptor = new OperationLogInterceptor(imap, opLog);
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'Shutdown signal received');
@@ -43,13 +47,13 @@ async function main(): Promise<void> {
 
   if (config.transport === 'stdio') {
     // ── STDIO mode ──────────────────────────────────────────────────────────
-    const closeTransport = await runStdioServer(imap, pool);
+    const closeTransport = await runStdioServer(imap, pool, interceptor);
 
     process.on('SIGINT',  () => void (async () => { await closeTransport(); await shutdown('SIGINT'); })());
     process.on('SIGTERM', () => void (async () => { await closeTransport(); await shutdown('SIGTERM'); })());
   } else {
     // ── HTTP / HTTPS mode ───────────────────────────────────────────────────
-    const app = await createHttpApp(imap, pool, config.http!, logger);
+    const app = await createHttpApp(imap, pool, interceptor, config.http!, logger);
 
     await app.listen({ host: config.http!.host, port: config.http!.port });
 

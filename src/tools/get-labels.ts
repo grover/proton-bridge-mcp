@@ -1,10 +1,9 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { LabelInfo } from '../types/index.js';
+import type { LabelInfo, ReadOnlyMailOps } from '../types/index.js';
 
 export const getLabelsSchema = {};
 
 export async function handleGetLabels(
-  imap: ImapClient,
+  ops: ReadOnlyMailOps,
 ): Promise<LabelInfo[]> {
-  return imap.getLabels();
+  return ops.getLabels();
 }

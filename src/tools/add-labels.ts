@@ -1,5 +1,4 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { EmailId, AddLabelsBatchResult } from '../types/index.js';
+import type { EmailId, AddLabelsBatchResult, MutatingMailOps } from '../types/index.js';
 import { emailIdStringSchema } from '../types/index.js';
 import { z } from 'zod';
 
@@ -12,7 +11,7 @@ export const addLabelsSchema = {
 
 export async function handleAddLabels(
   args: { ids: EmailId[]; labelNames: string[] },
-  imap: ImapClient,
+  ops: MutatingMailOps,
 ): Promise<AddLabelsBatchResult> {
-  return imap.addLabels(args.ids, args.labelNames);
+  return ops.addLabels(args.ids, args.labelNames);
 }

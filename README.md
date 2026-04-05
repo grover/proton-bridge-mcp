@@ -216,6 +216,12 @@ All environment variables use the `PROTONMAIL_` prefix. You can set them in a `.
 | `--https-cert` | `PROTONMAIL_HTTPS_CERT_PATH` | _(auto-generated)_ | TLS certificate path |
 | `--https-key` | `PROTONMAIL_HTTPS_KEY_PATH` | _(auto-generated)_ | TLS private key path |
 
+### Operation Log
+
+| CLI Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--operation-log-size` | `PROTONMAIL_OPERATION_LOG_SIZE` | `100` | Max entries in the in-memory revert log |
+
 ### Logging
 
 | CLI Flag | Env Var | Default | Description |

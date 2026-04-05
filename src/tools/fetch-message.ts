@@ -1,5 +1,4 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { EmailId, ListToolResult, EmailMessage } from '../types/index.js';
+import type { EmailId, ListToolResult, EmailMessage, ReadOnlyMailOps } from '../types/index.js';
 import { emailIdStringSchema } from '../types/index.js';
 import { z } from 'zod';
 
@@ -10,8 +9,8 @@ export const fetchMessageSchema = {
 
 export async function handleFetchMessage(
   args: { ids: EmailId[] },
-  imap: ImapClient,
+  ops: ReadOnlyMailOps,
 ): Promise<ListToolResult<EmailMessage>> {
-  const items = await imap.fetchMessage(args.ids);
+  const items = await ops.fetchMessage(args.ids);
   return { status: 'succeeded' as const, items };
 }

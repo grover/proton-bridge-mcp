@@ -105,13 +105,15 @@ export class OperationLogInterceptor {
     return { status: batchStatus(items), items };
   }
 
-  @Tracked('create_folder', buildCreateFolderReversal)
+  // Not tracked: reversal requires deleteFolder which is on a separate branch.
+  // TODO: re-add @Tracked('create_folder', buildCreateFolderReversal) when deleteFolder lands.
   async createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>> {
     const data = await this.#imap.createFolder(path);
     return { status: 'succeeded' as const, data };
   }
 
-  @Tracked('add_labels', buildAddLabelsReversal)
+  // Not tracked: reversal requires deleteEmails which is on a separate branch.
+  // TODO: re-add @Tracked('add_labels', buildAddLabelsReversal) when deleteEmails lands.
   async addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult> {
     return this.#imap.addLabels(ids, labelNames);
   }
@@ -166,10 +168,10 @@ export class OperationLogInterceptor {
         break;
 
       case 'create_folder':
-        throw new Error('Reversal of create_folder not yet implemented — deleteFolder required');
-
       case 'add_labels':
-        throw new Error('Reversal of add_labels not yet implemented — deleteEmails required');
+        // These reversal types are stored in ReversalSpec but not yet executable.
+        // They will be implemented when deleteFolder/deleteEmails land.
+        throw new Error(`Reversal of ${spec.type} not yet implemented`);
 
       default: {
         const _exhaustive: never = spec;

@@ -181,27 +181,19 @@ describe('OperationLogInterceptor', () => {
   });
 
   describe('createFolder', () => {
-    it('tracks when created === true', async () => {
+    it('delegates to imap.createFolder and is NOT tracked (no operationId)', async () => {
       mock(imap.createFolder).mockResolvedValue({ path: 'NewFolder', created: true });
 
       const result = await interceptor.createFolder('NewFolder');
 
-      expect(result).toHaveProperty('operationId');
-      expect(log.size).toBe(1);
-    });
-
-    it('does NOT track when created === false', async () => {
-      mock(imap.createFolder).mockResolvedValue({ path: 'ExistingFolder', created: false });
-
-      const result = await interceptor.createFolder('ExistingFolder');
-
+      expect(imap.createFolder).toHaveBeenCalledWith('NewFolder');
       expect(result).not.toHaveProperty('operationId');
       expect(log.size).toBe(0);
     });
   });
 
   describe('addLabels', () => {
-    it('delegates to imap.addLabels and returns operationId', async () => {
+    it('delegates to imap.addLabels and is NOT tracked (no operationId)', async () => {
       const ids = [eid(1)];
       const labels = ['Important'];
       const batchResult: AddLabelsBatchResult = {
@@ -219,50 +211,8 @@ describe('OperationLogInterceptor', () => {
       const result = await interceptor.addLabels(ids, labels);
 
       expect(imap.addLabels).toHaveBeenCalledWith(ids, labels);
-      expect(result).toHaveProperty('operationId');
-    });
-
-    it('builds correct add_labels reversal with copy UIDs', async () => {
-      const ids = [eid(1), eid(2)];
-      const labels = ['Important', 'Work'];
-      const batchResult: AddLabelsBatchResult = {
-        status: 'succeeded',
-        items: [
-          {
-            id: eid(1),
-            status: 'succeeded',
-            data: [
-              { labelPath: 'Labels/Important', newId: eid(50, 'Labels/Important') },
-              { labelPath: 'Labels/Work', newId: eid(51, 'Labels/Work') },
-            ],
-          },
-          {
-            id: eid(2),
-            status: 'succeeded',
-            data: [
-              { labelPath: 'Labels/Important', newId: eid(52, 'Labels/Important') },
-              { labelPath: 'Labels/Work', newId: eid(53, 'Labels/Work') },
-            ],
-          },
-        ],
-      };
-      mock(imap.addLabels).mockResolvedValue(batchResult);
-
-      const result = await interceptor.addLabels(ids, labels);
-      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
-      const records = log.getFrom(operationId);
-
-      expect(records).toHaveLength(1);
-      expect(records[0]!.tool).toBe('add_labels');
-      expect(records[0]!.reversal).toEqual({
-        type: 'add_labels',
-        entries: [
-          { original: eid(1), labelPath: 'Labels/Important', copy: eid(50, 'Labels/Important') },
-          { original: eid(1), labelPath: 'Labels/Work', copy: eid(51, 'Labels/Work') },
-          { original: eid(2), labelPath: 'Labels/Important', copy: eid(52, 'Labels/Important') },
-          { original: eid(2), labelPath: 'Labels/Work', copy: eid(53, 'Labels/Work') },
-        ],
-      });
+      expect(result).not.toHaveProperty('operationId');
+      expect(log.size).toBe(0);
     });
   });
 
@@ -363,70 +313,84 @@ describe('OperationLogInterceptor', () => {
     });
 
     it('removes only successfully reverted records from log', async () => {
-      // Push a create_folder (will fail on revert) and a mark_read (will succeed)
-      mock(imap.createFolder).mockResolvedValue({ path: 'TestFolder', created: true });
-      const r1 = await interceptor.createFolder('TestFolder');
-      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
-
-      const flagItems: BatchItemResult<FlagResult>[] = [
+      // Push two mark_read ops; make the second one's reversal fail
+      const items1: BatchItemResult<FlagResult>[] = [
         { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
       ];
-      mock(imap.setFlag).mockResolvedValue(flagItems);
-      await interceptor.markRead([eid(1)]);
+      mock(imap.setFlag).mockResolvedValueOnce(items1);
+      const r1 = await interceptor.markRead([eid(1)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
 
-      mock(imap.setFlag).mockReset().mockResolvedValue([]);
+      const items2: BatchItemResult<FlagResult>[] = [
+        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(items2);
+      const r2 = await interceptor.markRead([eid(2)]);
+      const opId2 = (r2 as unknown as Record<string, unknown>).operationId as number;
+
+      // Reversal: op2 succeeds, op1 fails
+      mock(imap.setFlag).mockReset()
+        .mockResolvedValueOnce([]) // op2 reversal succeeds
+        .mockRejectedValueOnce(new Error('IMAP_ERROR')); // op1 reversal fails
 
       const revertResult = await interceptor.revertOperations(opId1);
 
-      // mark_read reverted successfully (removed), create_folder failed (still in log)
       expect(revertResult.stepsSucceeded).toBe(1);
       expect(revertResult.stepsFailed).toBe(1);
-      expect(log.has(opId1)).toBe(true); // create_folder still present
+      expect(log.has(opId2)).toBe(false); // reverted successfully, removed
+      expect(log.has(opId1)).toBe(true);  // failed, still in log
     });
 
     it('continues on error (best-effort) — first fails, second succeeds', async () => {
-      // First: create_folder (revert throws "not yet implemented")
-      mock(imap.createFolder).mockResolvedValue({ path: 'Folder1', created: true });
-      const r1 = await interceptor.createFolder('Folder1');
+      // Two mark_read ops
+      const items1: BatchItemResult<FlagResult>[] = [
+        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(items1);
+      const r1 = await interceptor.markRead([eid(1)]);
       const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
 
-      // Second: markRead (revert will succeed)
-      const flagItems: BatchItemResult<FlagResult>[] = [
-        { id: eid(5), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+      const items2: BatchItemResult<FlagResult>[] = [
+        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
       ];
-      mock(imap.setFlag).mockResolvedValue(flagItems);
-      await interceptor.markRead([eid(5)]);
+      mock(imap.setFlag).mockResolvedValueOnce(items2);
+      await interceptor.markRead([eid(2)]);
 
-      mock(imap.setFlag).mockReset().mockResolvedValue([]);
+      // Reverse order: op2 fails, op1 succeeds
+      mock(imap.setFlag).mockReset()
+        .mockRejectedValueOnce(new Error('IMAP_ERROR')) // op2 reversal fails
+        .mockResolvedValueOnce([]); // op1 reversal succeeds
 
       const revertResult = await interceptor.revertOperations(opId1);
 
-      // Both steps attempted; reverse order means markRead is first, create_folder second
       expect(revertResult.steps).toHaveLength(2);
-      // markRead revert succeeds
       const successStep = revertResult.steps.find(s => s.status === 'success');
       expect(successStep).toBeDefined();
       expect(successStep!.tool).toBe('mark_read');
-      // create_folder revert errors
       const errorStep = revertResult.steps.find(s => s.status === 'error');
       expect(errorStep).toBeDefined();
-      expect(errorStep!.tool).toBe('create_folder');
-      expect(errorStep!.error).toContain('not yet implemented');
+      expect(errorStep!.tool).toBe('mark_read');
+      expect(errorStep!.error).toContain('IMAP_ERROR');
     });
 
     it('returns correct summary counts', async () => {
-      // Two operations: one that will revert OK, one that will fail
-      mock(imap.createFolder).mockResolvedValue({ path: 'X', created: true });
-      const r1 = await interceptor.createFolder('X');
-      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
-
-      const flagItems: BatchItemResult<FlagResult>[] = [
+      // Two operations: op2 reversal fails, op1 succeeds
+      const items1: BatchItemResult<FlagResult>[] = [
         { id: eid(1), status: 'succeeded', data: { flagsAfter: [] } },
       ];
-      mock(imap.setFlag).mockResolvedValue(flagItems);
-      await interceptor.markUnread([eid(1)]);
+      mock(imap.setFlag).mockResolvedValueOnce(items1);
+      const r1 = await interceptor.markUnread([eid(1)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
 
-      mock(imap.setFlag).mockReset().mockResolvedValue([]);
+      const items2: BatchItemResult<FlagResult>[] = [
+        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(items2);
+      await interceptor.markRead([eid(2)]);
+
+      mock(imap.setFlag).mockReset()
+        .mockRejectedValueOnce(new Error('fail')) // op2 reversal fails
+        .mockResolvedValueOnce([]); // op1 reversal succeeds
 
       const revertResult = await interceptor.revertOperations(opId1);
 
@@ -455,44 +419,5 @@ describe('OperationLogInterceptor', () => {
     });
   });
 
-  // ── Revert for not-yet-implemented reversals ────────────────────────────────
-
-  describe('revert of create_folder', () => {
-    it('results in error status since reversal throws not yet implemented', async () => {
-      mock(imap.createFolder).mockResolvedValue({ path: 'MyFolder', created: true });
-      const result = await interceptor.createFolder('MyFolder');
-      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
-
-      const revertResult = await interceptor.revertOperations(operationId);
-
-      expect(revertResult.steps).toHaveLength(1);
-      expect(revertResult.steps[0]!.status).toBe('error');
-      expect(revertResult.steps[0]!.error).toContain('not yet implemented');
-    });
-  });
-
-  describe('revert of add_labels', () => {
-    it('results in error status since reversal throws not yet implemented', async () => {
-      const batchResult = {
-        status: 'succeeded' as const,
-        items: [
-          {
-            id: eid(1),
-            status: 'succeeded' as const,
-            data: [{ labelPath: 'Labels/Test', newId: eid(50, 'Labels/Test') }],
-          },
-        ],
-      };
-      mock(imap.addLabels).mockResolvedValue(batchResult);
-
-      const result = await interceptor.addLabels([eid(1)], ['Test']);
-      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
-
-      const revertResult = await interceptor.revertOperations(operationId);
-
-      expect(revertResult.steps).toHaveLength(1);
-      expect(revertResult.steps[0]!.status).toBe('error');
-      expect(revertResult.steps[0]!.error).toContain('not yet implemented');
-    });
-  });
 });
+

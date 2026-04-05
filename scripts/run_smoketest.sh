@@ -53,7 +53,8 @@ MCP_HOST="${PROTONMAIL_MCP_HOST:-127.0.0.1}"
 MCP_PORT="${PROTONMAIL_MCP_PORT:-3000}"
 MCP_BASE="${PROTONMAIL_MCP_BASE_PATH:-/mcp}"
 MCP_URL="http://${MCP_HOST}:${MCP_PORT}${MCP_BASE}"
-INSPECTOR_URL="http://127.0.0.1:${INSPECTOR_PORT}"
+MCP_DISPLAY_URL="http://localhost:${MCP_PORT}${MCP_BASE}"
+INSPECTOR_URL="http://localhost:${INSPECTOR_PORT}"
 PROXY_PORT=6277
 
 # ── Kill stale processes if their ports are in use ───────────────────────────
@@ -171,9 +172,9 @@ echo "╔═══════════════════════�
 echo "║                   SMOKE TEST READY                         ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║                                                            ║"
-printf "║  MCP Server    : %-40s ║\n" "${MCP_URL}"
+printf "║  MCP Server    : %-40s ║\n" "${MCP_DISPLAY_URL}"
 printf "║  Inspector UI  : %-40s ║\n" "${INSPECTOR_URL}"
-printf "║  Inspector Proxy: %-39s ║\n" "http://127.0.0.1:${PROXY_PORT}"
+printf "║  Inspector Proxy: %-39s ║\n" "http://localhost:${PROXY_PORT}"
 echo "║                                                            ║"
 printf "║  Auth token    : %-40s ║\n" "${DEBUG_TOKEN}"
 printf "║  Bearer header : Bearer %-33s ║\n" "${DEBUG_TOKEN}"

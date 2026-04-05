@@ -1,6 +1,5 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { EmailId, BatchToolResult, FlagResult } from '../types/index.js';
-import { emailIdStringSchema, batchStatus } from '../types/index.js';
+import type { EmailId, BatchToolResult, FlagResult, MutatingMailOps } from '../types/index.js';
+import { emailIdStringSchema } from '../types/index.js';
 import { z } from 'zod';
 
 export const markReadSchema = {
@@ -10,8 +9,7 @@ export const markReadSchema = {
 
 export async function handleMarkRead(
   args: { ids: EmailId[] },
-  imap: ImapClient,
+  ops: MutatingMailOps,
 ): Promise<BatchToolResult<FlagResult>> {
-  const items = await imap.setFlag(args.ids, '\\Seen', true);
-  return { status: batchStatus(items), items };
+  return ops.markRead(args.ids);
 }

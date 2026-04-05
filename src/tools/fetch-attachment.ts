@@ -1,5 +1,4 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { EmailId, SingleToolResult, AttachmentContent } from '../types/index.js';
+import type { EmailId, SingleToolResult, AttachmentContent, ReadOnlyMailOps } from '../types/index.js';
 import { emailIdStringSchema } from '../types/index.js';
 import { z } from 'zod';
 
@@ -11,8 +10,8 @@ export const fetchAttachmentSchema = {
 
 export async function handleFetchAttachment(
   args: { id: EmailId; partId: string },
-  imap: ImapClient,
+  ops: ReadOnlyMailOps,
 ): Promise<SingleToolResult<AttachmentContent>> {
-  const data = await imap.fetchAttachment(args.id, args.partId);
+  const data = await ops.fetchAttachment(args.id, args.partId);
   return { status: 'succeeded' as const, data };
 }

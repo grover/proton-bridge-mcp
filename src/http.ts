@@ -6,21 +6,22 @@ import Fastify, {
 } from 'fastify';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { randomUUID } from 'node:crypto';
-import type { ImapClient }         from './bridge/imap.js';
-import type { ImapConnectionPool } from './bridge/pool.js';
-import type { McpHttpConfig }      from './types/index.js';
-import type { AppLogger }          from './logger.js';
-import { createMcpServer }         from './server.js';
+import type { ImapConnectionPool }  from './bridge/pool.js';
+import type { ReadOnlyMailOps, MutatingMailOps } from './types/mail-ops.js';
+import type { McpHttpConfig }       from './types/index.js';
+import type { AppLogger }           from './logger.js';
+import { createMcpServer }          from './server.js';
 
 interface Session {
   transport: StreamableHTTPServerTransport;
 }
 
 export async function createHttpApp(
-  imap:   ImapClient,
-  pool:   ImapConnectionPool,
-  config: McpHttpConfig,
-  logger: AppLogger,
+  readOps: ReadOnlyMailOps,
+  pool:    ImapConnectionPool,
+  mutOps:  MutatingMailOps,
+  config:  McpHttpConfig,
+  logger:  AppLogger,
 ): Promise<FastifyInstance> {
   const app = Fastify({
     ...(config.tls ? { https: config.tls } : {}),
@@ -50,7 +51,7 @@ export async function createHttpApp(
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => sessionId!,
       });
-      const server = createMcpServer(imap, pool);
+      const server = createMcpServer(readOps, pool, mutOps);
       // Cast needed: SDK's StreamableHTTPServerTransport.onclose is (() => void) | undefined
       // but the Transport interface declares onclose: () => void (exactOptionalPropertyTypes mismatch)
       await server.connect(transport as Parameters<typeof server.connect>[0]);

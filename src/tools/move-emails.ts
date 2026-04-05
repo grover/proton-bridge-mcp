@@ -1,6 +1,5 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { EmailId, BatchToolResult, MoveResult } from '../types/index.js';
-import { emailIdStringSchema, batchStatus } from '../types/index.js';
+import type { EmailId, BatchToolResult, MoveResult, MutatingMailOps } from '../types/index.js';
+import { emailIdStringSchema } from '../types/index.js';
 import { z } from 'zod';
 
 export const moveEmailsSchema = {
@@ -12,8 +11,7 @@ export const moveEmailsSchema = {
 
 export async function handleMoveEmails(
   args: { ids: EmailId[]; targetMailbox: string },
-  imap: ImapClient,
+  ops: MutatingMailOps,
 ): Promise<BatchToolResult<MoveResult>> {
-  const items = await imap.moveEmails(args.ids, args.targetMailbox);
-  return { status: batchStatus(items), items };
+  return ops.moveEmails(args.ids, args.targetMailbox);
 }

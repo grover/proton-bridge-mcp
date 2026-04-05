@@ -90,3 +90,39 @@ export interface CreateFolderResult {
 
 export type MoveBatchResult = BatchItemResult<MoveResult>[];
 export type FlagBatchResult = BatchItemResult<FlagResult>[];
+
+// ── Reversal specifications ───────────────────────────────────────────────────
+
+export type ReversalSpec =
+  | { type: 'move_batch';    moves:   Array<{ from: EmailId; to: EmailId }> }
+  | { type: 'mark_read';     ids:     EmailId[] }
+  | { type: 'mark_unread';   ids:     EmailId[] }
+  | { type: 'create_folder'; path:    string }
+  | { type: 'add_labels';    entries: Array<{ original: EmailId; labelPath: string; copy: EmailId }> };
+
+// ── Operation record ──────────────────────────────────────────────────────────
+
+export interface OperationRecord {
+  id:        number;
+  tool:      string;
+  reversal:  ReversalSpec;
+  timestamp: string;   // ISO 8601
+}
+
+// ── Revert result types ───────────────────────────────────────────────────────
+
+export type RevertStepStatus = 'success' | 'partial' | 'error';
+
+export interface RevertStepResult {
+  operationId: number;
+  tool:        string;
+  status:      RevertStepStatus;
+  error?:      string;
+}
+
+export interface RevertResult {
+  stepsTotal:     number;
+  stepsSucceeded: number;
+  stepsFailed:    number;
+  steps:          RevertStepResult[];
+}

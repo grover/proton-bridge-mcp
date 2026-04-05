@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import type { ImapClient } from '../bridge/imap.js';
-import type { SingleToolResult, CreateFolderResult } from '../types/index.js';
+import type { SingleToolResult, CreateFolderResult, MutatingMailOps } from '../types/index.js';
 
 export const createFolderSchema = {
   path: z.string().min(1)
@@ -9,13 +8,12 @@ export const createFolderSchema = {
 
 export async function handleCreateFolder(
   args: { path: string },
-  imap: ImapClient,
+  ops: MutatingMailOps,
 ): Promise<SingleToolResult<CreateFolderResult>> {
   // Strip trailing slashes and validate a real folder name exists after "Folders/"
   const cleaned = args.path.replace(/\/+$/, '');
   if (!cleaned || cleaned === 'Folders' || !cleaned.startsWith('Folders/') || cleaned === 'Folders/') {
     throw new Error('INVALID_PATH: path must contain a folder name after "Folders/" (e.g. "Folders/MyFolder")');
   }
-  const data = await imap.createFolder(cleaned);
-  return { status: 'succeeded' as const, data };
+  return ops.createFolder(cleaned);
 }

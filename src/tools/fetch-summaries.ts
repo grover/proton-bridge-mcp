@@ -1,5 +1,4 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { EmailId, ListToolResult, EmailSummary } from '../types/index.js';
+import type { EmailId, ListToolResult, EmailSummary, ReadOnlyMailOps } from '../types/index.js';
 import { emailIdStringSchema } from '../types/index.js';
 import { z } from 'zod';
 
@@ -9,8 +8,8 @@ export const fetchSummariesSchema = {
 
 export async function handleFetchSummaries(
   args: { ids: EmailId[] },
-  imap: ImapClient,
+  ops: ReadOnlyMailOps,
 ): Promise<ListToolResult<EmailSummary>> {
-  const items = await imap.fetchSummaries(args.ids);
+  const items = await ops.fetchSummaries(args.ids);
   return { status: 'succeeded' as const, items };
 }

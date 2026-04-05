@@ -12,3 +12,4 @@ export * from './verify-connectivity.js';
 export * from './drain-connections.js';
 export * from './add-labels.js';
 export * from './get-labels.js';
+export * from './revert-operations.js';

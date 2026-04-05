@@ -1,11 +1,10 @@
-import type { ImapClient } from '../bridge/imap.js';
-import type { ListToolResult, FolderInfo } from '../types/index.js';
+import type { ListToolResult, FolderInfo, ReadOnlyMailOps } from '../types/index.js';
 
 export const getFoldersSchema = {};
 
 export async function handleGetFolders(
-  imap: ImapClient,
+  ops: ReadOnlyMailOps,
 ): Promise<ListToolResult<FolderInfo>> {
-  const items = await imap.getFolders();
+  const items = await ops.getFolders();
   return { status: 'succeeded' as const, items };
 }

@@ -17,6 +17,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
 
 - [Read Operations](#read-operations)
   - [get_folders](#get_folders)
+  - [get_labels](#get_labels)
   - [list_mailbox](#list_mailbox)
   - [fetch_summaries](#fetch_summaries)
   - [fetch_message](#fetch_message)
@@ -72,6 +73,42 @@ List all mail folders with detailed metadata — message counts, unread counts, 
     "messageCount": 57,
     "unreadCount": 0,
     "uidNext": 412
+  }
+]
+```
+
+---
+
+### `get_labels`
+
+List all Proton Mail labels with detailed metadata — message counts, unread counts, next UID, subscription status, and IMAP flags. Returns only label folders (under `Labels/`), excluding regular mail folders, the virtual Starred mailbox, and the Labels root.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Input** | _(none)_ |
+
+**Returns:** `LabelInfo[]`
+
+```jsonc
+[
+  {
+    "name": "Important",              // Label name (last path component)
+    "listed": true,                   // Appeared in LIST response
+    "subscribed": true,               // Label is subscribed
+    "flags": ["\\HasNoChildren"],     // IMAP folder attributes
+    "messageCount": 23,               // Total messages (STATUS MESSAGES)
+    "unreadCount": 1,                 // Unseen messages (STATUS UNSEEN)
+    "uidNext": 87                     // Next UID to be assigned
+  },
+  {
+    "name": "Work",
+    "listed": true,
+    "subscribed": true,
+    "flags": ["\\HasNoChildren"],
+    "messageCount": 14,
+    "unreadCount": 0,
+    "uidNext": 52
   }
 ]
 ```

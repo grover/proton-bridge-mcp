@@ -62,16 +62,23 @@ export interface AttachmentContent {
   size:        number;
 }
 
-/** IMAP mailbox/folder descriptor returned by get_folders */
-export interface FolderInfo {
-  path:         string;           // full hierarchy path, e.g. "INBOX", "Folders/Work"
+/** Shared base fields for both folders and labels */
+export interface MailboxBase {
   name:         string;           // leaf name, e.g. "Work"
-  delimiter:    string;           // hierarchy delimiter, usually "/"
   listed:       boolean;          // appeared in the LIST response
-  subscribed:   boolean;          // folder is subscribed
+  subscribed:   boolean;          // folder/label is subscribed
   flags:        string[];         // IMAP folder attributes, e.g. "\\HasNoChildren"
   specialUse?:  string;           // RFC 6154 special-use: \\Sent, \\Drafts, \\Trash, \\Junk, etc.
   messageCount: number;           // total messages (STATUS MESSAGES)
   unreadCount:  number;           // unseen messages (STATUS UNSEEN)
   uidNext:      number;           // next UID to be assigned (STATUS UIDNEXT)
 }
+
+/** IMAP mailbox/folder descriptor returned by get_folders */
+export interface FolderInfo extends MailboxBase {
+  path:         string;           // full hierarchy path, e.g. "INBOX", "Folders/Work"
+  delimiter:    string;           // hierarchy delimiter, usually "/"
+}
+
+/** Simplified label descriptor returned by get_labels (no path/delimiter to avoid confusing LLMs) */
+export type LabelInfo = MailboxBase;

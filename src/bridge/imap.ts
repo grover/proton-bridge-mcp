@@ -12,7 +12,9 @@ import type {
   EmailMessage,
   AttachmentMetadata,
   AttachmentContent,
+  MailboxBase,
   FolderInfo,
+  LabelInfo,
   CreateFolderResult,
   MoveBatchResult,
   FlagBatchResult,
@@ -38,18 +40,27 @@ export class ImapClient {
 
   @Audited('get_folders')
   async getFolders(): Promise<FolderInfo[]> {
+    return this.#listMailboxes(
+      mb =>
+        mb.path !== 'Starred' &&
+        mb.path !== 'Labels' &&
+        !mb.path.startsWith('Labels/'),
+      toFolderInfo,
+    );
+  }
+
+  @Audited('get_labels')
+  async getLabels(): Promise<LabelInfo[]> {
+    return this.#listMailboxes(mb => mb.path.startsWith('Labels/'), toLabelInfo);
+  }
+
+  async #listMailboxes<T>(filter: (mb: ListResponse) => boolean, mapper: (mb: ListResponse) => T): Promise<T[]> {
     const conn = await this.#pool.acquire();
     try {
       const mailboxes = await conn.list({
         statusQuery: { messages: true, unseen: true, uidNext: true },
       });
-      return mailboxes
-        .filter(mb =>
-          mb.path !== 'Starred' &&
-          mb.path !== 'Labels' &&
-          !mb.path.startsWith('Labels/'),
-        )
-        .map(toFolderInfo);
+      return mailboxes.filter(filter).map(mapper);
     } finally {
       this.#pool.release(conn);
     }
@@ -397,11 +408,9 @@ export class ImapClient {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function toFolderInfo(mb: ListResponse): FolderInfo {
+function toMailboxBase(mb: ListResponse): MailboxBase {
   return {
-    path:         mb.path,
     name:         mb.name,
-    delimiter:    mb.delimiter,
     listed:       mb.listed,
     subscribed:   mb.subscribed,
     flags:        [...mb.flags],
@@ -410,6 +419,14 @@ function toFolderInfo(mb: ListResponse): FolderInfo {
     unreadCount:  mb.status?.unseen ?? 0,
     uidNext:      mb.status?.uidNext ?? 0,
   };
+}
+
+function toFolderInfo(mb: ListResponse): FolderInfo {
+  return { ...toMailboxBase(mb), path: mb.path, delimiter: mb.delimiter };
+}
+
+function toLabelInfo(mb: ListResponse): LabelInfo {
+  return toMailboxBase(mb);
 }
 
 interface MailboxGroupEntry {

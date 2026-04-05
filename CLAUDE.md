@@ -82,12 +82,12 @@ npm publish is enabled (`"publish": true`); requires `NPM` secret in GitHub repo
 | Milestone | Status | Notes |
 |---|---|---|
 | MVP | **Complete** | Scaffolding + IMAP pool + audit + verify + `get_folders` + idle drain timer |
-| M1 | Partial | `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment` done |
+| M1 | **Complete** | `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
 | M2 | **Complete** | STDIO default transport + MCPB packaging; OAuth (issue #7) not started |
-| M3 | Partial | `mark_read`, `mark_unread` done; star/archive/trash pending |
+| M3 | In progress | `get_folders`, `create_folder`, `add_labels`, `mark_read`, `mark_unread` done; `get_labels`, operation log, tool result standardization in flight |
 | M4–M5 | Not started | |
 
-**Next:** M3 star/archive/trash, then revert tool.
+**Next:** Complete M3 — get_labels, operation log + revert, remaining folder/label tools.
 
 ## Key Patterns
 
@@ -129,6 +129,20 @@ try {
 CLI args (`commander`) → env vars → defaults. All env vars prefixed `PROTONMAIL_`.
 `loadConfig(process.argv)` throws with the flag/var name if a required value is missing.
 
+### Standardized Tool Result Structure
+All tool responses include a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
+- **Batch tools:** `BatchToolResult<T>` — `{ status, items: BatchItemResult<T>[] }` with per-item `status: ItemStatus`
+- **List tools:** `ListToolResult<T>` — `{ status: 'succeeded', items: T[] }` (throw on failure)
+- **Single tools:** `SingleToolResult<T>` — `{ status, data: T }`
+- Use `batchStatus(items)` utility to compute top-level status from per-item results.
+
+### groupByMailbox Pattern (`src/bridge/imap.ts`)
+Returns `MailboxGroup[]` with pre-computed indices for O(n) result placement:
+```typescript
+interface MailboxGroup { mailbox: string; entries: Array<{ index: number; id: EmailId }> }
+```
+Callers use `entry.index` for result placement — never `indexOf`.
+
 ### Transport Modes
 - **STDIO (default):** no flags needed; `src/stdio.ts` connects one `McpServer` to `StdioServerTransport`
 - **HTTP:** `--http`; each session gets its own `McpServer` instance (created in `createHttpApp`)
@@ -162,6 +176,7 @@ import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 |---|---|
 | `get_folders` | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
 | `create_folder` | Create a new mail folder under `Folders/` (recursive) |
+| `get_labels` | List all Proton Mail labels with message counts, unread counts, and IMAP metadata |
 | `list_mailbox` | Browse emails in a mailbox, newest first (paginated) |
 | `fetch_summaries` | Envelope data for known UIDs (batch) |
 | `fetch_message` | Text/HTML body + attachment metadata (batch, no content) |

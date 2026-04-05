@@ -15,6 +15,7 @@ import {
   verifyConnectivitySchema, handleVerifyConnectivity,
   drainConnectionsSchema,   handleDrainConnections,
   addLabelsSchema,          handleAddLabels,
+  getLabelsSchema,          handleGetLabels,
 } from './tools/index.js';
 
 function toText(data: unknown): string {
@@ -179,6 +180,18 @@ export function createMcpServer(
     },
     async () => ({
       content: [{ type: 'text', text: toText(await handleDrainConnections(pool)) }],
+    }),
+  );
+
+  server.registerTool(
+    'get_labels',
+    {
+      description: 'List all Proton Mail labels with detailed metadata — message counts, unread counts, next UID, subscription status, and IMAP flags. Returns only label folders (under Labels/), excluding regular mail folders, the virtual Starred mailbox, and the Labels root.',
+      inputSchema: getLabelsSchema,
+      annotations: READ_ONLY,
+    },
+    async () => ({
+      content: [{ type: 'text', text: toText(await handleGetLabels(imap)) }],
     }),
   );
 

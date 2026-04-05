@@ -34,11 +34,16 @@ export interface LogConfig {
   logLevel:     string;
 }
 
+export interface OperationLogConfig {
+  maxSize: number;  // max entries in ring buffer (default 100)
+}
+
 export interface AppConfig {
-  transport: 'stdio' | 'http' | 'https';
-  bridge:    ProtonMailBridgeConfig;
-  pool:      ConnectionPoolConfig;
-  http?:     McpHttpConfig;  // only present in http/https mode
-  log:       LogConfig;
-  verify:    boolean;
+  transport:    'stdio' | 'http' | 'https';
+  bridge:       ProtonMailBridgeConfig;
+  pool:         ConnectionPoolConfig;
+  http?:        McpHttpConfig;  // only present in http/https mode
+  log:          LogConfig;
+  operationLog: OperationLogConfig;
+  verify:       boolean;
 }

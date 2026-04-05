@@ -2,64 +2,82 @@
 
 ## Overview
 
-```
-HTTP Client (Claude Desktop / MCP Inspector)
-      │  POST/GET/DELETE /mcp
-      │  Authorization: Bearer <PROTONMAIL_MCP_AUTH_TOKEN>
-      ▼
-┌─────────────────────────────────────────────┐
-│  Fastify HTTP Server  (src/http.ts)         │
-│  ─ onRequest hook: Bearer token check       │
-│  ─ session map: sessionId → transport       │
-│  ─ POST: create/reuse StreamableHTTP session│
-│  ─ GET: SSE stream                          │
-│  ─ DELETE: close session                    │
-└──────────────────┬──────────────────────────┘
-                   │  one McpServer per session
-┌──────────────────▼──────────────────────────┐
-│  McpServer  (src/server.ts)                 │
-│  createMcpServer(imap, pool)                │
-│  ─ 13 registered tools                      │
-│  ─ created fresh per HTTP session           │
-│  ─ imap + pool are shared singletons        │
-└──────────────────┬──────────────────────────┘
-                   ��
-┌──────────────────▼──────────────────────────┐
-│  ImapClient  (src/bridge/imap.ts)           │
-│  ─ all methods @Audited                     │
-│  ─ batches grouped by mailbox               │
-│  ─ results reordered to match input order   │
-└──────────────────┬──────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────┐
-│  ImapConnectionPool  (src/bridge/pool.ts)   │
-│  ─ min/max connections (configurable)       │
-│  ─ pool version drain (no draining flag)    │
-│  ─ idle drain timer (drain-to-min + empty)  │
-│  ─ per-event structured logging             │
-│  ─ auto-replenish to min on error/drain     │
-└──────────────────┬──────────────────────────┘
-                   │  TLS (rejectUnauthorized: false)
-      Proton Bridge daemon
-      IMAP: 127.0.0.1:1143
-```
+proton-bridge-mcp is an MCP server that bridges ProtonMail to AI agents via the local Proton Bridge IMAP daemon. It exposes 14 tools for reading, searching, and organizing email through the Model Context Protocol. Three transport modes are supported: STDIO (default), HTTP, and HTTPS.
 
 ## Startup Flow
 
+`src/index.ts` orchestrates initialization:
+
+1. `loadConfig(process.argv)` — parse CLI args, fall back to env vars, validate
+2. `createLogger(config.log)` — pino logger to stderr or file
+3. `new AuditLogger(auditLogPath)` — JSONL audit log to file
+4. `new ImapConnectionPool(config.bridge, config.pool, logger)` — connection pool
+5. If `--verify`: `pool.start()` → `pool.verifyConnectivity()` → `pool.stop()` → exit
+6. `pool.start()` — open min connections
+7. `new ImapClient(pool, audit, logger)` — IMAP operations facade
+8. Branch on transport mode:
+   - **STDIO:** `runStdioServer(imap, pool)` → register shutdown handlers
+   - **HTTP/HTTPS:** `createHttpApp(imap, pool, config.http, logger)` → `app.listen()` → register shutdown handlers
+
+Shutdown: SIGINT/SIGTERM → close transport → `pool.stop()` → `process.exit(0)`
+
+## STDIO Transport
+
 ```
-process.argv + env vars
-      │
-  loadConfig()          ─ CLI args override env vars; throws on missing required values
-      │
-  createLogger()        ─ pino → stderr or file
-  AuditLogger()         ─ JSONL → file only
-  ImapConnectionPool()  ─ start() spins up min connections
-      │
-  [--verify mode]       ─ verifyConnectivity() → exit 0/1
-      │
-  ImapClient()          ─ shared singleton
-  createHttpApp()       ─ Fastify + MCP HTTP transport wiring
-  app.listen()
+MCP Client
+  ↕ stdin/stdout
+StdioServerTransport
+  ↕
+McpServer (single instance)
+  ↕
+ImapClient ──→ ImapConnectionPool ──→ Proton Bridge (IMAP)
+```
+
+One `McpServer` instance for the lifetime of the process. `ImapClient` and `ImapConnectionPool` are shared singletons.
+
+## HTTP(S) Transport
+
+```
+MCP Client ──→ HTTP(S) + Bearer Auth
+  ↕
+Fastify (onRequest auth hook)
+  ↕
+StreamableHTTPServerTransport (per session, keyed by mcp-session-id)
+  ↕
+McpServer (per session, created on first POST)
+  ↕
+ImapClient (shared) ──→ ImapConnectionPool (shared) ──→ Proton Bridge (IMAP)
+```
+
+Each client session gets its own `McpServer` + `StreamableHTTPServerTransport`. `ImapClient` and `ImapConnectionPool` are shared across all sessions.
+
+## Folder Structure
+
+```
+src/
+├── config.ts              # CLI/env config parsing (commander)
+├── logger.ts              # pino logger factory
+├── index.ts               # Entry point, startup orchestration
+├── server.ts              # McpServer factory, tool registration
+├── stdio.ts               # STDIO transport setup
+├── http.ts                # HTTP/HTTPS transport (Fastify)
+├── bridge/
+│   ├── imap.ts            # ImapClient — all IMAP operations
+│   ├── pool.ts            # ImapConnectionPool — connection management
+│   ├── audit.ts           # AuditLogger — JSONL audit trail
+│   ├── decorators.ts      # @Audited method decorator
+│   ├── errors.ts          # IMAP error types
+│   └── index.ts           # Barrel export
+├── tools/
+│   ├── get-folders.ts     # One file per tool handler
+│   ├── ...                # (14 tool files total)
+│   └── index.ts           # Barrel export
+└── types/
+    ├── email.ts           # EmailId, EmailSummary, EmailMessage, etc.
+    ├── config.ts          # AppConfig, McpHttpConfig, PoolConfig, etc.
+    ├── audit.ts           # AuditEntry
+    ├── operations.ts      # BatchToolResult, ListToolResult, SingleToolResult
+    └── index.ts           # Barrel export
 ```
 
 ## Component Responsibilities
@@ -97,12 +115,7 @@ Wraps the decorated method body in `this.audit.wrap(operation, firstArg, fn)`.
 All methods `@Audited`. Internal helper `#fetchByIds` groups `EmailId[]` by mailbox,
 fetches each group under one `getMailboxLock`, then reassembles in input order via a `Map<"mailbox:uid", T>`.
 
-**imapflow type gotchas:**
-- `conn.mailbox` is `false | MailboxObject` — guard with `conn.mailbox !== false`
-- `messageMove()` returns `CopyResponseObject | false` — `uidMap` is `Map<number,number>`, use `.get()`
-
-**mailparser type gotcha:**
-- `ParsedMail.html` is `string | false` — use `|| undefined`, not `?? undefined`
+See [docs/IMAP.md](docs/IMAP.md) for imapflow/mailparser type gotchas and IMAP implementation patterns.
 
 ### `src/http.ts`
 Creates one `McpServer` per client session (not one global instance).
@@ -110,7 +123,7 @@ Sessions keyed by `mcp-session-id` header. `reply.hijack()` before passing to tr
 `server.connect(transport)` requires a cast due to MCP SDK `exactOptionalPropertyTypes` mismatch on `onclose`.
 
 ### `src/server.ts` — `createMcpServer(imap, pool)`
-Registers 13 tools. Called once per HTTP session. Tool handler pattern:
+Registers 14 tools. Called once per HTTP session. Tool handler pattern:
 ```typescript
 server.tool(name, description, zodRawShape, async (args) => ({
   content: [{ type: 'text', text: JSON.stringify(await handler(args, imap)) }],
@@ -121,6 +134,10 @@ server.tool(name, description, zodRawShape, async (args) => ({
 
 ```
 EmailId          { uid: number, mailbox: string }
+  formatEmailId(id) → "Mailbox:UID"       (tool output — JSON.stringify replacer in toText())
+  parseEmailId(str) → EmailId             (tool input — splits on last colon)
+  isEmailId(value)  → type guard          (duck-type: exactly 2 keys, uid + mailbox)
+
 EmailAddress     { address: string, name?: string }
 
 EmailSummary     id + messageId + from/to/cc/replyTo + subject + date + size + flags + hasAttachments
@@ -157,29 +174,11 @@ AddLabelsBatchResult  = BatchToolResult<AddLabelsItemData[]>
 
 ## Tool Inventory
 
-| Tool | Input | Output | IMAP Op |
-|---|---|---|---|
-| `get_folders` | — | `ListToolResult<FolderInfo>` | LIST * + STATUS (messages, unseen, uidNext) |
-| `get_labels` | — | `ListToolResult<LabelInfo>` | LIST * + STATUS (messages, unseen, uidNext) |
-| `create_folder` | `path` | `SingleToolResult<CreateFolderResult>` | CREATE mailbox |
-| `list_mailbox` | `mailbox`, `limit`, `offset` | `ListToolResult<EmailSummary>` | SELECT + FETCH seq range, reversed |
-| `fetch_summaries` | `ids: EmailId[]` | `ListToolResult<EmailSummary>` | UID FETCH envelope+flags |
-| `fetch_message` | `ids: EmailId[]` | `ListToolResult<EmailMessage>` | UID FETCH source → mailparser |
-| `fetch_attachment` | `id`, `partId` | `SingleToolResult<AttachmentContent>` | UID FETCH source → mailparser attachment[partId-1] |
-| `search_mailbox` | `mailbox`, `query`, `limit`, `offset` | `ListToolResult<EmailSummary>` | SEARCH TEXT + UID FETCH |
-| `move_emails` | `ids`, `targetMailbox` | `BatchToolResult<MoveResult>` | UID MOVE per item |
-| `mark_read` | `ids` | `BatchToolResult<FlagResult>` | UID STORE +FLAGS (\\Seen) |
-| `mark_unread` | `ids` | `BatchToolResult<FlagResult>` | UID STORE -FLAGS (\\Seen) |
-| `verify_connectivity` | — | `SingleToolResult<{ latencyMs?, error? }>` | connect + NOOP |
-| `add_labels` | `ids`, `labelNames` | `AddLabelsBatchResult` | UID COPY per item/label |
-| `drain_connections` | — | `SingleToolResult<{ message }>` | pool.drain() |
+See [docs/tools/README.md](docs/tools/README.md) for the complete tool reference (schemas, annotations, examples). The server registers 14 tools in `src/server.ts`.
 
 ## Batch Contract
 
-1. **Input-order preserved** — result[i] ↔ input[i]
-2. **Per-item errors** — `{ id, error: { code, message } }` for failed items
-3. **Mailbox grouping** — IDs grouped internally; one lock per mailbox; results reordered before return
-4. **Top-level failure** — connection/auth failure → tool error (not per-item)
+See [docs/IMAP.md](docs/IMAP.md) for the full batch operations contract and IMAP implementation patterns.
 
 ## Authentication
 

@@ -241,6 +241,7 @@ For **full documentation** — including input schemas, return types, and exampl
 | Tool | Flags | Description |
 |---|---|---|
 | `get_folders` | read-only | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
+| `get_labels` | read-only | List all Proton Mail labels with message counts, unread counts, and IMAP metadata |
 | `create_folder` | mutating | Create a new mail folder under `Folders/` (supports nested paths) |
 | `list_mailbox` | read-only | Browse emails in a mailbox, newest first, with pagination |
 | `fetch_summaries` | read-only | Fetch envelope data (from, to, subject, date, flags) for known email IDs |

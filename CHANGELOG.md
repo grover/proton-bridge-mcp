@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `get_labels` MCP tool — list all Proton Mail labels with message counts, unread counts, and IMAP metadata; complements `get_folders` using a shared `#listMailboxes` helper
 - `add_labels` MCP tool — add one or more Proton Mail labels to a batch of emails via IMAP COPY; returns per-email results including new UIDs in label folders
 - `AddLabelsBatchResult`, `AddLabelsItem`, `AddLabelsItemData` types in `src/types/operations.ts`
 - `create_folder` MCP tool — creates new mail folders under `Folders/` with recursive nested path support (e.g. `Folders/Work/Projects`); returns whether the folder was newly created or already existed

@@ -129,7 +129,9 @@ EmailSummary     id + messageId + from/to/cc/replyTo + subject + date + size + f
 AttachmentMetadata  { partId, filename?, contentType, size }
 AttachmentContent   { emailId, partId, filename?, contentType, data (base64), size }
 
-FolderInfo          { path, name, delimiter, listed, subscribed, flags: string[], specialUse?, messageCount, unreadCount, uidNext }
+MailboxBase          { name, listed, subscribed, flags: string[], specialUse?, messageCount, unreadCount, uidNext }
+FolderInfo extends MailboxBase  { path, delimiter }
+LabelInfo = MailboxBase
 CreateFolderResult  { path, created }
 
 BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
@@ -146,6 +148,7 @@ AddLabelsBatchResult  { items: AddLabelsItem[] }
 | Tool | Input | Output | IMAP Op |
 |---|---|---|---|
 | `get_folders` | — | `FolderInfo[]` | LIST * + STATUS (messages, unseen, uidNext) |
+| `get_labels` | — | `LabelInfo[]` | LIST * + STATUS (messages, unseen, uidNext) |
 | `create_folder` | `path` | `CreateFolderResult` | CREATE mailbox |
 | `list_mailbox` | `mailbox`, `limit`, `offset` | `EmailSummary[]` | SELECT + FETCH seq range, reversed |
 | `fetch_summaries` | `ids: EmailId[]` | `EmailSummary[]` | UID FETCH envelope+flags |

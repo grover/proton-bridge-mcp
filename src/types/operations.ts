@@ -111,12 +111,10 @@ export interface OperationRecord {
 
 // ── Revert result types ───────────────────────────────────────────────────────
 
-export type RevertStepStatus = 'success' | 'partial' | 'error';
-
 export interface RevertStepResult {
   operationId: number;
   tool:        string;
-  status:      RevertStepStatus;
+  status:      ToolStatus;
   error?:      string;
 }
 

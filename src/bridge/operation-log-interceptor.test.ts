@@ -364,10 +364,10 @@ describe('OperationLogInterceptor', () => {
       const revertResult = await interceptor.revertOperations(opId1);
 
       expect(revertResult.steps).toHaveLength(2);
-      const successStep = revertResult.steps.find(s => s.status === 'success');
+      const successStep = revertResult.steps.find(s => s.status === 'succeeded');
       expect(successStep).toBeDefined();
       expect(successStep!.tool).toBe('mark_read');
-      const errorStep = revertResult.steps.find(s => s.status === 'error');
+      const errorStep = revertResult.steps.find(s => s.status === 'failed');
       expect(errorStep).toBeDefined();
       expect(errorStep!.tool).toBe('mark_read');
       expect(errorStep!.error).toContain('IMAP_ERROR');

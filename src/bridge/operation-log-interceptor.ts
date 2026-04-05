@@ -132,12 +132,12 @@ export class OperationLogInterceptor {
       try {
         await this.#executeReversal(record.reversal);
         this.log.remove(record.id);
-        steps.push({ operationId: record.id, tool: record.tool, status: 'success' });
+        steps.push({ operationId: record.id, tool: record.tool, status: 'succeeded' });
       } catch (err) {
         steps.push({
           operationId: record.id,
           tool:        record.tool,
-          status:      'error',
+          status:      'failed',
           error:       err instanceof Error ? err.message : String(err),
         });
       }
@@ -145,8 +145,8 @@ export class OperationLogInterceptor {
 
     return {
       stepsTotal:     steps.length,
-      stepsSucceeded: steps.filter(s => s.status === 'success').length,
-      stepsFailed:    steps.filter(s => s.status !== 'success').length,
+      stepsSucceeded: steps.filter(s => s.status === 'succeeded').length,
+      stepsFailed:    steps.filter(s => s.status === 'failed').length,
       steps,
     };
   }

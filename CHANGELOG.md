@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `remove_labels` MCP tool — bulk-remove Proton Mail labels from emails. Uses IMAP `messageDelete()` from label folders, which Proton Bridge translates to `UnlabelMessages()` (no permanent deletion). Finds copies by Message-ID search. Tracked via `@Tracked` — revertable with `revert_operations` (re-applies labels via `addLabels`). Annotated as DESTRUCTIVE. (#20)
 - `delete_label` MCP tool — delete Proton Mail labels by name. Irreversible (`@IrreversibleWhen`) — clears the operation log only when the label was actually deleted. Idempotent: returns `{ deleted: false }` for non-existent labels. Verified safe in Proton Bridge source — emails are preserved. (#18)
 - `create_label` reversal enabled — `revert_operations` can now undo `create_label` by calling `deleteLabel` (#18)
 - `DeleteMailboxResult` base type — shared by `delete_folder` and `delete_label` via type aliases; `#deleteMailbox` shared IMAP helper (#18)

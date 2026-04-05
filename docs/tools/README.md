@@ -32,6 +32,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
   - [mark_read](#mark_read)
   - [mark_unread](#mark_unread)
   - [add_labels](#add_labels)
+  - [remove_labels](#remove_labels)
 - [Maintenance](#maintenance)
   - [verify_connectivity](#verify_connectivity)
   - [drain_connections](#drain_connections)
@@ -496,6 +497,53 @@ Add one or more Proton Mail labels to a batch of emails. Each email is copied in
 ```
 
 > **Note:** If a requested label does not exist as an IMAP folder (e.g. `Labels/Foo`), the corresponding entry in `data` will have `labelPath` but no `newId`. If **all** requested labels are missing, the item reports a `LABEL_NOT_FOUND` error instead.
+
+---
+
+### `remove_labels`
+
+Remove one or more Proton Mail labels from a batch of emails. Removes the email copies from label folders; originals remain in their source mailboxes. Uses IMAP `messageDelete()` (STORE \Deleted + EXPUNGE) which Proton Bridge translates to `UnlabelMessages()` — no permanent deletion. Finds copies by Message-ID search.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` |
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–50) — source mailbox IDs |
+| `labelNames` | `string[]` | Label names to remove (plain names without `Labels/` prefix, 1+) |
+
+**Returns:** `RemoveLabelsBatchResult`
+
+```jsonc
+{
+  "operationId": 5,
+  "items": [
+    {
+      "id": "INBOX:42",
+      "data": [
+        { "labelName": "Work", "removed": true },
+        { "labelName": "Personal", "removed": false }
+      ]
+    },
+    {
+      "id": "INBOX:99",
+      "error": { "code": "REMOVE_FAILED", "message": "IMAP connection lost" }
+    }
+  ]
+}
+```
+
+**Per-item error codes:**
+
+| Code | Meaning |
+|---|---|
+| `LABEL_NOT_FOUND` | Label folder does not exist |
+| `REMOVE_FAILED` | IMAP operation failed |
+
+> **Note:** `removed: false` when an email was not found in the label folder is **not** treated as an error — the item succeeds with `removed: false`. This is idempotent: calling `remove_labels` twice produces the same result.
 
 ---
 

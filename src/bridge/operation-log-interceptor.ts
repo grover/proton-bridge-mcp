@@ -13,6 +13,7 @@ import type {
   DeleteFolderResult,
   DeleteLabelResult,
   AddLabelsBatchResult,
+  RemoveLabelsBatchResult,
   ReversalSpec,
   RevertResult,
   RevertStepResult,
@@ -72,6 +73,22 @@ function buildCreateLabelReversal(
 }
 
 // buildAddLabelsReversal not yet tracked — requires deleteEmails (see TODO.md).
+
+function buildRemoveLabelsReversal(
+  _args: unknown[],
+  result: unknown,
+): ReversalSpec | null {
+  const r = result as RemoveLabelsBatchResult;
+  const entries = r.items
+    .filter(item => item.status === 'succeeded' && item.data)
+    .flatMap(item =>
+      (item.data ?? [])
+        .filter(removal => removal.removed)
+        .map(removal => ({ original: item.id, labelPath: `Labels/${removal.labelName}` })),
+    );
+  if (entries.length === 0) return null;
+  return { type: 'remove_labels', entries };
+}
 
 // ── Interceptor ──────────────────────────────────────────────────────────────
 
@@ -133,6 +150,11 @@ export class OperationLogInterceptor {
   @Tracked('add_labels', () => null)
   async addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult> {
     return this.#imap.addLabels(ids, labelNames);
+  }
+
+  @Tracked('remove_labels', buildRemoveLabelsReversal)
+  async removeLabels(ids: EmailId[], labelNames: string[]): Promise<RemoveLabelsBatchResult> {
+    return this.#imap.removeLabels(ids, labelNames);
   }
 
   // ── Revert ────────────────────────────────────────────────────────────────
@@ -227,6 +249,20 @@ export class OperationLogInterceptor {
         // Reversal requires deleteEmails — not yet implemented.
         throw new Error(`Reversal of ${spec.type} not yet implemented`);
 
+      case 'remove_labels': {
+        const byLabel = new Map<string, EmailId[]>();
+        for (const entry of spec.entries) {
+          const ids = byLabel.get(entry.labelPath) ?? [];
+          ids.push(entry.original);
+          byLabel.set(entry.labelPath, ids);
+        }
+        for (const [labelPath, ids] of byLabel) {
+          const labelName = labelPath.slice('Labels/'.length);
+          await this.#imap.addLabels(ids, [labelName]);
+        }
+        return undefined;
+      }
+
       default: {
         const _exhaustive: never = spec;
         throw new Error(`Unknown reversal type: ${(_exhaustive as ReversalSpec).type}`);
@@ -247,6 +283,12 @@ export class OperationLogInterceptor {
             if (newFrom) move.from = newFrom;
             const newTo = uidMap.get(formatEmailId(move.to));
             if (newTo) move.to = newTo;
+          }
+          break;
+        case 'remove_labels':
+          for (const entry of spec.entries) {
+            const newOriginal = uidMap.get(formatEmailId(entry.original));
+            if (newOriginal) entry.original = newOriginal;
           }
           break;
       }

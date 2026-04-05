@@ -240,7 +240,7 @@ All environment variables use the `PROTONMAIL_` prefix. You can set them in a `.
 
 ## MCP Tools
 
-The server exposes 13 tools that MCP clients can call. Each tool is annotated with `readOnlyHint` or `destructiveHint` so clients can present appropriate confirmation prompts.
+The server exposes 16 tools that MCP clients can call. Each tool is annotated with `readOnlyHint` or `destructiveHint` so clients can present appropriate confirmation prompts.
 
 For **full documentation** — including input schemas, return types, and example JSON — see the **[Tools Reference](docs/tools/README.md)**.
 
@@ -261,6 +261,8 @@ For **full documentation** — including input schemas, return types, and exampl
 | `mark_read` | mutating | Add the `\Seen` flag to a batch of emails |
 | `mark_unread` | mutating | Remove the `\Seen` flag from a batch of emails |
 | `add_labels` | mutating | Add Proton Mail labels to a batch of emails (IMAP COPY) |
+| `remove_labels` | destructive | Remove Proton Mail labels from a batch of emails (IMAP messageDelete from label folders) |
+| `revert_operations` | destructive | Reverse a range of tracked operations in reverse chronological order |
 | `verify_connectivity` | read-only | Test connection to Proton Bridge and report latency |
 | `drain_connections` | read-only | Close all pooled connections (useful after a Bridge restart) |
 

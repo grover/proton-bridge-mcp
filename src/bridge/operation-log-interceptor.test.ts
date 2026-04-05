@@ -8,6 +8,7 @@ import type {
   MoveResult,
   FlagResult,
   AddLabelsBatchResult,
+  RemoveLabelsBatchResult,
 } from '../types/operations.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,6 +21,7 @@ function createMockImap() {
     createFolder: jest.fn(),
     createLabel: jest.fn(),
     addLabels: jest.fn(),
+    removeLabels: jest.fn(),
     deleteFolder: jest.fn(),
     deleteLabel: jest.fn(),
     deleteEmails: jest.fn(),
@@ -429,6 +431,92 @@ describe('OperationLogInterceptor', () => {
     });
   });
 
+  describe('removeLabels', () => {
+    it('delegates to imap.removeLabels and returns operationId', async () => {
+      const ids = [eid(1)];
+      const labels = ['Work'];
+      const batchResult: RemoveLabelsBatchResult = {
+        status: 'succeeded',
+        items: [
+          {
+            id: eid(1),
+            status: 'succeeded',
+            data: [{ labelName: 'Work', removed: true }],
+          },
+        ],
+      };
+      mock(imap.removeLabels).mockResolvedValue(batchResult);
+
+      const result = await interceptor.removeLabels(ids, labels);
+
+      expect(imap.removeLabels).toHaveBeenCalledWith(ids, labels);
+      expect(result).toHaveProperty('operationId');
+      expect(log.size).toBe(1);
+    });
+
+    it('builds remove_labels reversal with only removed: true entries', async () => {
+      const ids = [eid(1), eid(2)];
+      const batchResult: RemoveLabelsBatchResult = {
+        status: 'succeeded',
+        items: [
+          {
+            id: eid(1),
+            status: 'succeeded',
+            data: [
+              { labelName: 'Work', removed: true },
+              { labelName: 'Personal', removed: false },
+            ],
+          },
+          {
+            id: eid(2),
+            status: 'succeeded',
+            data: [
+              { labelName: 'Work', removed: true },
+              { labelName: 'Personal', removed: true },
+            ],
+          },
+        ],
+      };
+      mock(imap.removeLabels).mockResolvedValue(batchResult);
+
+      const result = await interceptor.removeLabels(ids, ['Work', 'Personal']);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+      const records = log.getFrom(operationId);
+
+      expect(records).toHaveLength(1);
+      expect(records[0]!.tool).toBe('remove_labels');
+      expect(records[0]!.reversal).toEqual({
+        type: 'remove_labels',
+        entries: [
+          { original: eid(1), labelPath: 'Labels/Work' },
+          { original: eid(2), labelPath: 'Labels/Work' },
+          { original: eid(2), labelPath: 'Labels/Personal' },
+        ],
+      });
+    });
+
+    it('records noop when all items have removed: false', async () => {
+      const batchResult: RemoveLabelsBatchResult = {
+        status: 'succeeded',
+        items: [
+          {
+            id: eid(1),
+            status: 'succeeded',
+            data: [{ labelName: 'Work', removed: false }],
+          },
+        ],
+      };
+      mock(imap.removeLabels).mockResolvedValue(batchResult);
+
+      const result = await interceptor.removeLabels([eid(1)], ['Work']);
+
+      expect(result).toHaveProperty('operationId');
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+      const records = log.getFrom(operationId);
+      expect(records[0]!.reversal).toEqual({ type: 'noop' });
+    });
+  });
+
   // ── Revert tests ────────────────────────────────────────────────────────────
 
   describe('revertOperations', () => {
@@ -662,6 +750,40 @@ describe('OperationLogInterceptor', () => {
 
       expect(imap.deleteLabel).not.toHaveBeenCalled();
       expect(revertResult.stepsSucceeded).toBe(1);
+    });
+
+    it('reverses remove_labels — calls imap.addLabels to re-apply labels', async () => {
+      const removeResult: RemoveLabelsBatchResult = {
+        status: 'succeeded',
+        items: [
+          {
+            id: eid(1),
+            status: 'succeeded',
+            data: [
+              { labelName: 'Work', removed: true },
+              { labelName: 'Personal', removed: true },
+            ],
+          },
+          {
+            id: eid(2),
+            status: 'succeeded',
+            data: [{ labelName: 'Work', removed: true }],
+          },
+        ],
+      };
+      mock(imap.removeLabels).mockResolvedValue(removeResult);
+
+      const result = await interceptor.removeLabels([eid(1), eid(2)], ['Work', 'Personal']);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      mock(imap.addLabels).mockReset().mockResolvedValue({ status: 'succeeded', items: [] });
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(revertResult.stepsSucceeded).toBe(1);
+      // Should call addLabels for each label group
+      expect(imap.addLabels).toHaveBeenCalledWith([eid(1), eid(2)], ['Work']);
+      expect(imap.addLabels).toHaveBeenCalledWith([eid(1)], ['Personal']);
     });
 
     it('revert calls imap directly — no new log entries created during revert', async () => {

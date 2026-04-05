@@ -5,6 +5,7 @@ import type {
   DeleteFolderResult,
   DeleteLabelResult,
   AddLabelsBatchResult,
+  RemoveLabelsBatchResult,
   BatchToolResult,
   SingleToolResult,
   MoveResult,
@@ -33,5 +34,6 @@ export interface MutatingMailOps {
   deleteFolder(path: string): Promise<SingleToolResult<DeleteFolderResult>>;
   deleteLabel(name: string): Promise<SingleToolResult<DeleteLabelResult>>;
   addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult>;
+  removeLabels(ids: EmailId[], labelNames: string[]): Promise<RemoveLabelsBatchResult>;
   revertOperations(operationId: number): Promise<RevertResult>;
 }

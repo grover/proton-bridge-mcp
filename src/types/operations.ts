@@ -84,6 +84,15 @@ export interface AddLabelsItemData {
 /** Batch result for add_labels — unified with BatchItemResult */
 export type AddLabelsBatchResult = BatchToolResult<AddLabelsItemData[]>;
 
+/** Result of removing a single label from one email */
+export interface RemoveLabelResult {
+  labelName: string;   // plain name, no "Labels/" prefix
+  removed:   boolean;  // false if email was not in this label
+}
+
+/** Batch result for remove_labels */
+export type RemoveLabelsBatchResult = BatchToolResult<RemoveLabelResult[]>;
+
 /** Result of creating an IMAP mailbox (folder or label) */
 export interface CreateMailboxResult {
   path:    string;
@@ -126,7 +135,8 @@ export type ReversalSpec =
   | { type: 'mark_unread';   ids:     EmailId[] }
   | { type: 'create_folder'; path:    string }
   | { type: 'create_label';  name:    string }
-  | { type: 'add_labels';    entries: Array<{ original: EmailId; labelPath: string; copy: EmailId }> };
+  | { type: 'add_labels';    entries: Array<{ original: EmailId; labelPath: string; copy: EmailId }> }
+  | { type: 'remove_labels'; entries: Array<{ original: EmailId; labelPath: string }> };
 
 // ── Operation record ──────────────────────────────────────────────────────────
 

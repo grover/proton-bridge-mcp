@@ -3,6 +3,7 @@ import type {
   CreateFolderResult,
   CreateLabelResult,
   DeleteFolderResult,
+  DeleteLabelResult,
   AddLabelsBatchResult,
   BatchToolResult,
   SingleToolResult,
@@ -30,6 +31,7 @@ export interface MutatingMailOps {
   createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>>;
   createLabel(name: string): Promise<SingleToolResult<CreateLabelResult>>;
   deleteFolder(path: string): Promise<SingleToolResult<DeleteFolderResult>>;
+  deleteLabel(name: string): Promise<SingleToolResult<DeleteLabelResult>>;
   addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult>;
   revertOperations(operationId: number): Promise<RevertResult>;
 }

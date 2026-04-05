@@ -7,6 +7,7 @@ import {
   createFolderSchema,           handleCreateFolder,
   createLabelSchema,            handleCreateLabel,
   deleteFolderSchema,           handleDeleteFolder,
+  deleteLabelSchema,            handleDeleteLabel,
   listMailboxSchema,            handleListMailbox,
   fetchSummariesSchema,         handleFetchSummaries,
   fetchMessageSchema,           handleFetchMessage,
@@ -81,6 +82,18 @@ export function createMcpServer(
     },
     async (args) => ({
       content: [{ type: 'text', text: toText(await handleCreateLabel(args, mutOps)) }],
+    }),
+  );
+
+  server.registerTool(
+    'delete_label',
+    {
+      description: "Delete a Proton Mail label. The underlying emails remain in their original folders — only the label view is removed. Warning: this operation clears the operation history — no prior operations can be reverted after calling delete_label.",
+      inputSchema: deleteLabelSchema,
+      annotations: DESTRUCTIVE,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleDeleteLabel(args, mutOps)) }],
     }),
   );
 

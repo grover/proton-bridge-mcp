@@ -18,7 +18,9 @@ import type {
   CreateMailboxResult,
   CreateFolderResult,
   CreateLabelResult,
+  DeleteMailboxResult,
   DeleteFolderResult,
+  DeleteLabelResult,
   MoveBatchResult,
   FlagBatchResult,
   BatchItemResult,
@@ -101,31 +103,37 @@ export class ImapClient {
     return { name, created: result.created };
   }
 
-  @Audited('delete_folder')
-  async deleteFolder(path: string): Promise<DeleteFolderResult> {
+  async #deleteMailbox(path: string, prefix: string): Promise<DeleteMailboxResult> {
     const cleaned = path.replace(/\/+$/, '');
-
-    if (!cleaned.startsWith('Folders/') || cleaned === 'Folders/') {
-      throw new Error('FORBIDDEN: can only delete folders under Folders/');
+    if (!cleaned.startsWith(prefix) || cleaned === prefix) {
+      throw new Error(`FORBIDDEN: can only delete mailboxes under ${prefix}`);
     }
-
     const conn = await this.#pool.acquire();
     try {
       const mailboxes = await conn.list();
       const target = mailboxes.find((mb: { path: string }) => mb.path === cleaned);
-
       if (!target) {
         return { path: cleaned, deleted: false };
       }
       if ((target as { specialUse?: string }).specialUse) {
-        throw new Error('FORBIDDEN: cannot delete special-use folder');
+        throw new Error('FORBIDDEN: cannot delete special-use mailbox');
       }
-
       await conn.mailboxDelete(cleaned);
       return { path: cleaned, deleted: true };
     } finally {
       this.#pool.release(conn);
     }
+  }
+
+  @Audited('delete_folder')
+  async deleteFolder(path: string): Promise<DeleteFolderResult> {
+    return this.#deleteMailbox(path, 'Folders/');
+  }
+
+  @Audited('delete_label')
+  async deleteLabel(name: string): Promise<DeleteLabelResult> {
+    const result = await this.#deleteMailbox(`Labels/${name}`, 'Labels/');
+    return { name, deleted: result.deleted };
   }
 
   @Audited('list_mailbox')

@@ -99,9 +99,18 @@ export interface CreateLabelResult {
   created: boolean;
 }
 
-/** Result of a folder deletion */
-export interface DeleteFolderResult {
+/** Result of deleting an IMAP mailbox (folder or label) */
+export interface DeleteMailboxResult {
   path:    string;
+  deleted: boolean;
+}
+
+/** Result of a folder deletion */
+export type DeleteFolderResult = DeleteMailboxResult;
+
+/** Result of a label deletion — uses name (not path) to match CreateLabelResult */
+export interface DeleteLabelResult {
+  name:    string;
   deleted: boolean;
 }
 
@@ -116,6 +125,7 @@ export type ReversalSpec =
   | { type: 'mark_read';     ids:     EmailId[] }
   | { type: 'mark_unread';   ids:     EmailId[] }
   | { type: 'create_folder'; path:    string }
+  | { type: 'create_label';  name:    string }
   | { type: 'add_labels';    entries: Array<{ original: EmailId; labelPath: string; copy: EmailId }> };
 
 // ── Operation record ──────────────────────────────────────────────────────────

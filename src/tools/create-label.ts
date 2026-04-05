@@ -7,8 +7,11 @@ export const createLabelSchema = {
 };
 
 export async function handleCreateLabel(
-  _args: { name: string },
-  _ops: MutatingMailOps,
+  args: { name: string },
+  ops: MutatingMailOps,
 ): Promise<SingleToolResult<CreateLabelResult>> {
-  throw new Error('Not implemented');
+  if (args.name.includes('/')) {
+    throw new Error('INVALID_NAME: label name must not contain "/"');
+  }
+  return ops.createLabel(args.name);
 }

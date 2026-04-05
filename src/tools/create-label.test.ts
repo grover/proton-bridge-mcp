@@ -2,6 +2,13 @@ import { jest } from '@jest/globals';
 import { handleCreateLabel } from './create-label.js';
 import type { MutatingMailOps } from '../types/index.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMock = jest.Mock<(...args: any[]) => any>;
+
+function mock(fn: unknown): AnyMock {
+  return fn as AnyMock;
+}
+
 function createMockOps() {
   return {
     createLabel: jest.fn(),
@@ -17,7 +24,7 @@ describe('handleCreateLabel', () => {
 
   it('delegates to ops.createLabel with the name', async () => {
     const expected = { status: 'succeeded' as const, data: { path: 'Labels/Important', created: true } };
-    (ops.createLabel as jest.Mock).mockResolvedValue(expected);
+    mock(ops.createLabel).mockResolvedValue(expected);
 
     const result = await handleCreateLabel({ name: 'Important' }, ops);
 

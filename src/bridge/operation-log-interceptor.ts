@@ -103,8 +103,9 @@ export class OperationLogInterceptor {
   // Tracked as noop — reversal requires deleteLabel (existing GitHub issue).
   // buildReversal returns null → @Tracked records { type: 'noop' }.
   @Tracked('create_label', () => null)
-  async createLabel(_name: string): Promise<SingleToolResult<CreateLabelResult>> {
-    throw new Error('Not implemented');
+  async createLabel(name: string): Promise<SingleToolResult<CreateLabelResult>> {
+    const data = await this.#imap.createLabel(name);
+    return { status: 'succeeded' as const, data };
   }
 
   @IrreversibleWhen((result) => (result as SingleToolResult<DeleteFolderResult>).data.deleted)

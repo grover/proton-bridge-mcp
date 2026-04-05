@@ -96,8 +96,8 @@ export class ImapClient {
   }
 
   @Audited('create_label')
-  async createLabel(_name: string): Promise<CreateLabelResult> {
-    throw new Error('Not implemented');
+  async createLabel(name: string): Promise<CreateLabelResult> {
+    return this.#createMailbox(`Labels/${name}`);
   }
 
   @Audited('delete_folder')

@@ -16,6 +16,7 @@ import type {
   FolderInfo,
   LabelInfo,
   CreateFolderResult,
+  DeleteFolderResult,
   MoveBatchResult,
   FlagBatchResult,
   BatchItemResult,
@@ -89,6 +90,11 @@ export class ImapClient {
     } finally {
       this.#pool.release(conn);
     }
+  }
+
+  @Audited('delete_folder')
+  async deleteFolder(_path: string): Promise<DeleteFolderResult> {
+    throw new Error('Not implemented');
   }
 
   @Audited('list_mailbox')

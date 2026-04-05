@@ -1,6 +1,6 @@
 import type { ImapClient } from './imap.js';
 import { OperationLog } from './operation-log.js';
-import { Tracked } from './decorators.js';
+import { Tracked, Irreversible } from './decorators.js';
 import { formatEmailId, type EmailId } from '../types/email.js';
 import type {
   BatchToolResult,
@@ -8,6 +8,7 @@ import type {
   FlagResult,
   SingleToolResult,
   CreateFolderResult,
+  DeleteFolderResult,
   AddLabelsBatchResult,
   ReversalSpec,
   RevertResult,
@@ -88,6 +89,11 @@ export class OperationLogInterceptor {
   async createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>> {
     const data = await this.#imap.createFolder(path);
     return { status: 'succeeded' as const, data };
+  }
+
+  @Irreversible
+  async deleteFolder(_path: string): Promise<SingleToolResult<DeleteFolderResult>> {
+    throw new Error('Not implemented');
   }
 
   // Tracked as noop — reversal requires deleteEmails (separate branch).

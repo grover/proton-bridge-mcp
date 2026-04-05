@@ -90,6 +90,11 @@ export interface CreateFolderResult {
   created: boolean;
 }
 
+/** Result of a folder deletion */
+export interface DeleteFolderResult {
+  path: string;
+}
+
 export type MoveBatchResult = BatchItemResult<MoveResult>[];
 export type FlagBatchResult = BatchItemResult<FlagResult>[];
 

@@ -106,14 +106,14 @@ export class ImapClient {
       const target = mailboxes.find((mb: { path: string }) => mb.path === cleaned);
 
       if (!target) {
-        throw new Error('NOT_FOUND: folder does not exist');
+        return { path: cleaned, deleted: false };
       }
       if ((target as { specialUse?: string }).specialUse) {
         throw new Error('FORBIDDEN: cannot delete special-use folder');
       }
 
       await conn.mailboxDelete(cleaned);
-      return { path: cleaned };
+      return { path: cleaned, deleted: true };
     } finally {
       this.#pool.release(conn);
     }

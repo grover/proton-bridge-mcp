@@ -278,25 +278,38 @@ describe('OperationLogInterceptor', () => {
 
   describe('deleteFolder', () => {
     it('delegates to imap.deleteFolder and returns SingleToolResult without operationId', async () => {
-      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/Work' });
+      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/Work', deleted: true });
 
       const result = await interceptor.deleteFolder('Folders/Work');
 
       expect(imap.deleteFolder).toHaveBeenCalledWith('Folders/Work');
-      expect(result).toEqual({ status: 'succeeded', data: { path: 'Folders/Work' } });
+      expect(result).toEqual({ status: 'succeeded', data: { path: 'Folders/Work', deleted: true } });
       expect(result).not.toHaveProperty('operationId');
     });
 
-    it('clears the operation log on success', async () => {
+    it('clears the operation log when deleted is true', async () => {
       // Pre-populate the log with a tracked operation
       mock(imap.createFolder).mockResolvedValue({ path: 'Folders/A', created: true });
       await interceptor.createFolder('Folders/A');
       expect(log.size).toBe(1);
 
-      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/A' });
+      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/A', deleted: true });
       await interceptor.deleteFolder('Folders/A');
 
       expect(log.size).toBe(0);
+    });
+
+    it('does not clear the log when deleted is false (folder did not exist)', async () => {
+      // Pre-populate the log
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/A', created: true });
+      await interceptor.createFolder('Folders/A');
+      expect(log.size).toBe(1);
+
+      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/Missing', deleted: false });
+      const result = await interceptor.deleteFolder('Folders/Missing');
+
+      expect(result).toEqual({ status: 'succeeded', data: { path: 'Folders/Missing', deleted: false } });
+      expect(log.size).toBe(1);
     });
 
     it('does not clear the log when imap.deleteFolder throws', async () => {
@@ -305,9 +318,9 @@ describe('OperationLogInterceptor', () => {
       await interceptor.createFolder('Folders/A');
       expect(log.size).toBe(1);
 
-      mock(imap.deleteFolder).mockRejectedValue(new Error('NOT_FOUND'));
+      mock(imap.deleteFolder).mockRejectedValue(new Error('FORBIDDEN'));
 
-      await expect(interceptor.deleteFolder('Folders/Missing')).rejects.toThrow('NOT_FOUND');
+      await expect(interceptor.deleteFolder('Folders/Special')).rejects.toThrow('FORBIDDEN');
       expect(log.size).toBe(1);
     });
   });

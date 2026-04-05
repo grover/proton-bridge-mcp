@@ -52,7 +52,7 @@ describe('ImapClient.deleteFolder', () => {
     client = new ImapClient(pool, createMockAudit(), createMockLogger());
   });
 
-  it('deletes folder and returns path on success', async () => {
+  it('deletes folder and returns deleted: true on success', async () => {
     mock(conn.list).mockResolvedValue([
       { path: 'INBOX' },
       { path: 'Folders/Work' },
@@ -61,7 +61,7 @@ describe('ImapClient.deleteFolder', () => {
 
     const result = await client.deleteFolder('Folders/Work');
 
-    expect(result).toEqual({ path: 'Folders/Work' });
+    expect(result).toEqual({ path: 'Folders/Work', deleted: true });
     expect(conn.mailboxDelete).toHaveBeenCalledWith('Folders/Work');
   });
 
@@ -84,13 +84,15 @@ describe('ImapClient.deleteFolder', () => {
     expect(conn.mailboxDelete).not.toHaveBeenCalled();
   });
 
-  it('throws NOT_FOUND when folder does not exist', async () => {
+  it('returns deleted: false when folder does not exist', async () => {
     mock(conn.list).mockResolvedValue([
       { path: 'INBOX' },
       { path: 'Trash' },
     ]);
 
-    await expect(client.deleteFolder('Folders/NonExistent')).rejects.toThrow('NOT_FOUND');
+    const result = await client.deleteFolder('Folders/NonExistent');
+
+    expect(result).toEqual({ path: 'Folders/NonExistent', deleted: false });
     expect(conn.mailboxDelete).not.toHaveBeenCalled();
   });
 
@@ -120,7 +122,7 @@ describe('ImapClient.deleteFolder', () => {
 
     const result = await client.deleteFolder('Folders/Work/');
 
-    expect(result).toEqual({ path: 'Folders/Work' });
+    expect(result).toEqual({ path: 'Folders/Work', deleted: true });
     expect(conn.mailboxDelete).toHaveBeenCalledWith('Folders/Work');
   });
 });

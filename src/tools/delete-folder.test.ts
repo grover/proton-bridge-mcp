@@ -29,7 +29,7 @@ describe('handleDeleteFolder', () => {
   });
 
   it('delegates to ops.deleteFolder with cleaned path', async () => {
-    const expected = { status: 'succeeded' as const, data: { path: 'Folders/Work' } };
+    const expected = { status: 'succeeded' as const, data: { path: 'Folders/Work', deleted: true } };
     mock(ops.deleteFolder).mockResolvedValue(expected);
 
     const result = await handleDeleteFolder({ path: 'Folders/Work' }, ops);
@@ -39,7 +39,7 @@ describe('handleDeleteFolder', () => {
   });
 
   it('strips trailing slashes before delegating', async () => {
-    const expected = { status: 'succeeded' as const, data: { path: 'Folders/Work' } };
+    const expected = { status: 'succeeded' as const, data: { path: 'Folders/Work', deleted: true } };
     mock(ops.deleteFolder).mockResolvedValue(expected);
 
     await handleDeleteFolder({ path: 'Folders/Work/' }, ops);

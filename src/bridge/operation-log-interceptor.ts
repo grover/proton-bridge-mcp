@@ -1,6 +1,6 @@
 import type { ImapClient } from './imap.js';
 import { OperationLog } from './operation-log.js';
-import { Tracked, Irreversible } from './decorators.js';
+import { Tracked, IrreversibleWhen } from './decorators.js';
 import { formatEmailId, type EmailId } from '../types/email.js';
 import type {
   BatchToolResult,
@@ -97,7 +97,7 @@ export class OperationLogInterceptor {
     return { status: 'succeeded' as const, data };
   }
 
-  @Irreversible
+  @IrreversibleWhen((result) => (result as SingleToolResult<DeleteFolderResult>).data.deleted)
   async deleteFolder(path: string): Promise<SingleToolResult<DeleteFolderResult>> {
     const data = await this.#imap.deleteFolder(path);
     return { status: 'succeeded' as const, data };

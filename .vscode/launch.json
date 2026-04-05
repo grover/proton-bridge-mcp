@@ -17,7 +17,24 @@
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
-      "args": ["src/index.ts"],
+      "args": ["src/index.ts", "--http"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"],
+      "preLaunchTask": "Start MCP Inspector",
+      "serverReadyAction": {
+        "pattern": "MCP server listening",
+        "action": "openExternally",
+        "uriFormat": "http://localhost:6274"
+      }
+    },
+    {
+      "name": "Debug MCP Smoke Test",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "args": ["src/index.ts", "--http"],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env",
       "sourceMaps": true,

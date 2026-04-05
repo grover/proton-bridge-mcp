@@ -26,7 +26,12 @@ source .env
 set +a
 
 # ── Dynamic secrets & ports ───────────────────────────────────────────────────
-DEBUG_TOKEN=$(node -e "process.stdout.write(require('crypto').randomBytes(16).toString('hex'))")
+if [ -z "${PROTONMAIL_MCP_AUTH_TOKEN:-}" ]; then
+  DEBUG_TOKEN=$(node -e "process.stdout.write(require('crypto').randomBytes(16).toString('hex'))")
+  export PROTONMAIL_MCP_AUTH_TOKEN="$DEBUG_TOKEN"
+else
+  DEBUG_TOKEN="$PROTONMAIL_MCP_AUTH_TOKEN"
+fi
 INSPECTOR_PORT=$(node -e "
   const net = require('net');
   const s = net.createServer();
@@ -37,7 +42,6 @@ INSPECTOR_PORT=$(node -e "
 ")
 
 # ── Config overrides ──────────────────────────────────────────────────────────
-export PROTONMAIL_MCP_AUTH_TOKEN="$DEBUG_TOKEN"
 export PROTONMAIL_AUDIT_LOG_PATH="${PROTONMAIL_AUDIT_LOG_PATH:-./audit.jsonl}"
 export PROTONMAIL_LOG_LEVEL="${PROTONMAIL_LOG_LEVEL:-debug}"
 
@@ -50,7 +54,7 @@ INSPECTOR_URL="http://127.0.0.1:${INSPECTOR_PORT}"
 # ── Start MCP server ──────────────────────────────────────────────────────────
 echo ""
 echo "Starting MCP server on ${MCP_URL} ..."
-node dist/index.js &
+node dist/index.js --http &
 SERVER_PID=$!
 
 cleanup() {

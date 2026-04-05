@@ -276,13 +276,15 @@ describe('OperationLogInterceptor', () => {
   });
 
   describe('createLabel', () => {
-    it('delegates to imap.createLabel and returns operationId', async () => {
+    it('delegates to imap.createLabel and returns name (not path) with operationId', async () => {
       mock(imap.createLabel).mockResolvedValue({ path: 'Labels/Important', created: true });
 
       const result = await interceptor.createLabel('Important');
 
       expect(imap.createLabel).toHaveBeenCalledWith('Important');
       expect(result).toHaveProperty('operationId');
+      expect(result.data).toEqual({ name: 'Important', created: true });
+      expect(result.data).not.toHaveProperty('path');
       expect(log.size).toBe(1);
     });
 

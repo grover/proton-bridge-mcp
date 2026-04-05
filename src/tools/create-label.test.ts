@@ -23,7 +23,7 @@ describe('handleCreateLabel', () => {
   });
 
   it('delegates to ops.createLabel with the name', async () => {
-    const expected = { status: 'succeeded' as const, data: { path: 'Labels/Important', created: true } };
+    const expected = { status: 'succeeded' as const, data: { name: 'Important', created: true } };
     mock(ops.createLabel).mockResolvedValue(expected);
 
     const result = await handleCreateLabel({ name: 'Important' }, ops);

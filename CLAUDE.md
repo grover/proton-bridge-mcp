@@ -39,10 +39,9 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 
 ### Operation Log and Revert
 See [docs/impl/operation-log-revert.md](docs/impl/operation-log-revert.md) for full design rationale, architecture, and implementation guide.
-- Tracked tools (`move_emails`, `mark_read`, `mark_unread`, `create_folder`, `create_label`, `remove_labels`) return `operationId` in responses
+- Tracked tools (`move_emails`, `mark_read`, `mark_unread`, `create_folder`, `create_label`, `add_labels`, `remove_labels`) return `operationId` in responses
 - `revert_operations` undoes a range of operations in reverse chronological order (best-effort)
 - `delete_folder` and `delete_label` use `@IrreversibleWhen` — clear the operation log only when actually deleted
-- Not yet tracked: `add_labels` (requires `deleteEmails` — see TODO.md)
 
 ### Interface Segregation
 - Tool handlers depend on **interfaces** (`ReadOnlyMailOps`, `MutatingMailOps` in `src/types/mail-ops.ts`), not concrete classes.

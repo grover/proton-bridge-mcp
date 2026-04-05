@@ -118,11 +118,11 @@ class OperationLog {
 - On throw: exception propagates, no log entry
 - Requires class to have `log: OperationLog` as public property
 
-### `@Irreversible`
+### `@Irreversible` / `@IrreversibleWhen`
 
-- Calls original method, then `this.log.clear()` on success
-- Reserved for future `delete_folder` tool
-- On throw: log NOT cleared
+- `@Irreversible`: Calls original method, then `this.log.clear()` unconditionally on success
+- `@IrreversibleWhen(predicate)`: Added later (#15) — conditional variant that only clears when `predicate(result)` returns true. Used by `delete_folder` and `delete_label` for idempotent deletion (no log clear when `deleted: false`).
+- On throw: log NOT cleared (both variants)
 
 ## OperationLogInterceptor — `src/bridge/operation-log-interceptor.ts` (new)
 

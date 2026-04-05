@@ -52,29 +52,23 @@ proton-bridge-mcp — An MCP server to expose Proton Mail via its Proton Mail Br
 * ~~Implement STDIO support according to https://github.com/grover/proton-bridge-mcp/issues/10~~ [DONE - v0.2.0]
 * Implement OAuth 2.0 support according to https://github.com/grover/proton-bridge-mcp/issues/7 [DELAYED]
 
-### M3 [IN PROGRESS]
+### M3 [DONE]
 
 See [M3 PRD](plans/m3-folders-labels-revert.md) for full tool specifications, implementation steps, and acceptance criteria.
 
-**Implemented:**
-* `get_folders` — enriched folder listing with filtering rules
-* `get_labels` — label listing
-* `create_folder` — create new user folders
-* `add_labels` — bulk copy emails into label folders
-
-**In Progress:**
-* `revert_operations` — undo tool with `OperationLog` ring buffer ([EDD](plans/edd-21-operation-log-revert.md))
-* `@Tracked` / `@Irreversible` decorators
+* `get_folders` — enriched folder listing with filtering rules (#13)
+* `get_labels` — label listing (#16)
+* `create_folder` — create new user folders (#14)
+* `create_label` — create Proton Mail labels (#17)
+* `delete_folder` — delete user folders, irreversible via `@IrreversibleWhen` (#15)
+* `delete_label` — delete Proton labels, irreversible via `@IrreversibleWhen` (#18)
+* `add_labels` — bulk copy emails into label folders (#19)
+* `remove_labels` — bulk remove emails from label folders via Message-ID search (#20)
+* `revert_operations` — undo tool with `OperationLog` ring buffer (#21)
+* `@Tracked` / `@IrreversibleWhen` / `@Irreversible` decorators
 * `OperationLogInterceptor` — GoF Decorator wrapping ImapClient for operation tracking
-
-**Pending:**
-* `delete_folder` — delete user folders
-* `create_label` — create labels
-* `delete_label` — delete labels with revert support
-* `remove_labels` — bulk remove emails from label folders
-* `revert_operations` — undo tool with `OperationLog` ring buffer
-* `@Tracked` / `@Irreversible` decorators
-* Add `openWorldHint` annotations to all tools ([#42](https://github.com/grover/proton-bridge-mcp/issues/42))
+* `openWorldHint` annotations on all tools + `MAINTENANCE` preset (#42)
+* `add_labels` response fix — return `{ labelName, applied }` instead of internal `{ labelPath, newId }` (#54)
 
 ### M4 [FUTURE]
 

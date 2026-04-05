@@ -1,6 +1,6 @@
 # Operation Log and `revert_operations`
 
-`src/bridge/operation-log.ts`, `src/bridge/operation-log-interceptor.ts`, `src/bridge/decorators.ts` (`@Tracked`, `@Irreversible`)
+`src/bridge/operation-log.ts`, `src/bridge/operation-log-interceptor.ts`, `src/bridge/decorators.ts` (`@Tracked`, `@IrreversibleWhen`, `@Irreversible`)
 
 ## Why This Exists
 
@@ -106,14 +106,14 @@ A ring buffer holding up to `maxSize` (default 100, [configurable](#configuratio
 | `getFrom(id)` → `OperationRecord[]` | All records from `id` to most recent, in reverse chronological order |
 | `has(id)` → `boolean` | True if the ID is still in the buffer |
 | `remove(id)` | Splice out a single record (after successful revert of that step) |
-| `clear()` | Wipe the entire buffer (called by `@Irreversible`) |
+| `clear()` | Wipe the entire buffer (called by `@IrreversibleWhen` / `@Irreversible`) |
 
 **`OperationLogInterceptor`** (`src/bridge/operation-log-interceptor.ts`)
 
 Wraps `ImapClient` for mutating operations. Each tracked method delegates to `ImapClient`, wraps the raw result into the tool result shape (`BatchToolResult` or `SingleToolResult`), then the `@Tracked` decorator builds a `ReversalSpec` and pushes it to the log.
 
 Currently tracked: `move_emails`, `mark_read`, `mark_unread`, `create_folder`.
-`delete_folder` uses `@Irreversible` — clears the entire log on success.
+`delete_folder` and `delete_label` use `@IrreversibleWhen` — clears the log only when the deletion actually happened (`deleted: true`).
 Not yet tracked: `add_labels` (requires `deleteEmails` — see TODO.md).
 
 The interceptor also owns `revertOperations()`, which retrieves records from the log, executes each reversal against `ImapClient` directly, and removes successfully reverted records.
@@ -158,7 +158,7 @@ When adding a new mutating tool that should be revertible:
 
 For **irreversible** operations (e.g., `delete_folder` which destroys data that cannot be recovered):
 
-1. Apply `@Irreversible` instead of `@Tracked`. This clears the log after success — all prior operation IDs become `UNKNOWN_OPERATION_ID`.
+1. Apply `@IrreversibleWhen(predicate)` instead of `@Tracked`. This clears the log after success when the predicate returns true — all prior operation IDs become `UNKNOWN_OPERATION_ID`. Use `@Irreversible` for unconditional clearing.
 2. Document clearly that this operation is irreversible and will invalidate all pending operation IDs.
 
 ### UID rewriting during chain revert
@@ -201,5 +201,5 @@ The `OperationLog` constructor receives `maxSize` from `AppConfig.operationLog.m
 - **Ring buffer bounds memory.** A runaway agent issuing thousands of mutations can't cause unbounded memory growth. The buffer is capped at `maxSize` entries ([configurable](#configuration), default 100).
 - **Reversals are best-effort, not transactional.** If step 3 of a 5-step revert fails, steps 4 and 5 (which were reverted before step 3 in reverse order) remain reverted. The response clearly reports per-step status so the agent can assess the outcome.
 - **No recursive tracking.** Reversal operations bypass the interceptor entirely, preventing feedback loops where a revert generates new operations that need reverting.
-- **`@Irreversible` as a circuit breaker.** Destructive operations that can't be undone (like deleting a folder) clear the log. This prevents agents from believing they can revert past a destructive boundary.
-- **`UNKNOWN_OPERATION_ID` is fail-safe.** If an ID is evicted from the ring buffer, or the log was cleared by `@Irreversible`, or the server restarted, the revert fails cleanly with no side effects.
+- **`@IrreversibleWhen` as a circuit breaker.** Destructive operations that can't be undone (like deleting a folder or label) clear the log when the deletion actually happens. This prevents agents from believing they can revert past a destructive boundary. Idempotent no-ops (`deleted: false`) do not clear the log.
+- **`UNKNOWN_OPERATION_ID` is fail-safe.** If an ID is evicted from the ring buffer, or the log was cleared by `@IrreversibleWhen`, or the server restarted, the revert fails cleanly with no side effects.

@@ -16,10 +16,10 @@ of `delete_folder`, which clears the log.
 | Folder path shape | Single `path` parameter (must start with `Folders/`). Multi-segment paths allowed (e.g. `Folders/Work/Projects`). IMAP CREATE handles recursive creation. |
 | IMAP CREATE API | Confirmed: `conn.mailboxCreate(path)` → `{ path, created: boolean }` |
 | IMAP DELETE API | Confirmed: `conn.mailboxDelete(path)` → `{ path }` |
-| `delete_folder` | Clears the operation log via new `@Irreversible` decorator. NOT @Tracked. |
-| `delete_label` | IS @Tracked and reversible. Does NOT clear the log. Captures all email IDs in the label before deletion. |
-| Log-clearing decorator | New `@Irreversible`: on full or partial success, calls `operationLog.clear()`. |
-| remove_labels IMAP mechanism | Needs research during implementation. Hypothesis: MOVE from `Labels/<name>` back to source mailbox. Must NOT use `\Deleted + EXPUNGE`. Issue requests investigation. |
+| `delete_folder` | Clears the operation log conditionally via `@IrreversibleWhen` — only when `deleted: true`. Idempotent. |
+| `delete_label` | Irreversible — clears the operation log conditionally via `@IrreversibleWhen`. IMAP can't discover source mailbox UIDs for label copies, so reversal is not possible. |
+| Log-clearing decorators | `@Irreversible`: unconditional log clear. `@IrreversibleWhen(predicate)`: conditional — only clears when predicate returns true. |
+| remove_labels IMAP mechanism | Uses IMAP `messageDelete()` (STORE `\Deleted` + EXPUNGE) from label folders. Proton Bridge translates this to `UnlabelMessages()` — no permanent deletion. Finds copies by Message-ID search. |
 | OperationLog coupling | ImapClient has zero awareness of OperationLog. Use `OperationLogInterceptor` class (GoF Decorator) wrapping ImapClient. Tool handlers in `server.ts` call the interceptor for mutating ops. |
 | operationId in responses | **Extend** — not wrap. Object results: spread `operationId` at top level. Array results: return `{ operationId, items: [...] }`. |
 | `revert_operations` | IS marked DESTRUCTIVE. |
@@ -35,7 +35,7 @@ of `delete_folder`, which clears the log.
 | 3 | `M3: delete_folder — delete a custom mail folder` | no | **clears** |
 | 4 | `M3: list_labels — list all Proton labels` | n/a (read) | none |
 | 5 | `M3: create_label — create a Proton label` | yes | appends |
-| 6 | `M3: delete_label — delete a Proton label` | yes | appends |
+| 6 | `M3: delete_label — delete a Proton label` | no | **clears** |
 | 7 | `M3: add_labels — bulk add labels to emails` | yes | appends |
 | 8 | `M3: remove_labels — bulk remove labels from emails` | yes | appends |
 | 9 | `M3: Operation log and revert_operations tool` | n/a (recovery) | consumes |
@@ -312,7 +312,9 @@ _(No `operationId` — this operation clears the log, not appends to it.)_
 
 ## Issue 6 — `M3: delete_label — delete a Proton label`
 
-**Goal:** Delete a Proton label. Revertable. Captures email associations before deletion. Does NOT clear the operation log.
+**Goal:** Delete a Proton label. Irreversible — clears the operation log on success. Emails are preserved.
+
+> **Implementation deviation:** The original PRD design described `delete_label` as revertable, capturing email associations before deletion. Investigation during implementation (see [EDD-18](edd-18-delete-label.md)) revealed this is **not practically possible** at the IMAP level: emails in label folders have copy UIDs, not source mailbox UIDs. IMAP doesn't track copy provenance. Verified safe in Proton Bridge source (`connector.go:272-283`) — `DeleteMailbox()` only removes the label classification, not the emails.
 
 ### Tool specification
 
@@ -320,28 +322,29 @@ _(No `operationId` — this operation clears the log, not appends to it.)_
 
 **Description:**
 > Delete a Proton Mail label. The underlying emails remain in their original folders — only
-> the label view is removed. This operation is revertable: the label and all its email
-> associations can be restored using revert_operations.
+> the label view is removed. Warning: this operation clears the operation history — no prior
+> operations can be reverted after calling delete_label.
 
 **Parameters:**
 ```typescript
 {
-  path: string;  // Required. Full label path, e.g. "Labels/Project X".
+  name: string;  // Required. Plain label name, e.g. "Project X".
 }
 ```
 
 **Return:**
 ```typescript
 {
-  operationId: number;  // For use with revert_operations
-  path:        string;  // Deleted label path
-  emailCount:  number;  // Number of email associations captured for potential revert
+  name:    string;   // Label name
+  deleted: boolean;  // true = deleted; false = label didn't exist (idempotent)
 }
 ```
 
+Note: no `operationId` — this operation clears the log rather than appending to it.
+
 **Error conditions:**
-- `FORBIDDEN` — path is `"Labels/"` itself, or does not start with `"Labels/"`
-- `NOT_FOUND` — label does not exist
+- `INVALID_NAME` — name contains `"/"`
+- `FORBIDDEN` — label has `specialUse` attribute
 - IMAP failure → top-level thrown error
 
 ### imapflow API
@@ -350,32 +353,22 @@ _(No `operationId` — this operation clears the log, not appends to it.)_
 
 ### Implementation steps
 
-1. Add `src/tools/delete-label.ts` with Zod schema as above.
-2. Add `ImapClient.deleteLabel(path: string): Promise<DeleteLabelResult>` with `@Audited('delete_label')`.
-   - Guard: `FORBIDDEN` if `path === 'Labels/'` or `!path.startsWith('Labels/')`.
-   - **Before deletion:** search all messages in the label folder; build `EmailId[]` of source
-     mailbox IDs (see open question below).
-   - Call `conn.mailboxDelete(path)`. Return `{ path, emailCount }`.
-3. On `OperationLogInterceptor`: `@Tracked` with reversal
-   `{ type: 'delete_label', path, emails: EmailId[] }`.
-   Revert: `createLabel(name)` then `addLabels(emails, [name])`.
-4. Add `DeleteLabelResult { path: string; emailCount: number }` to `src/types/operations.ts`.
-5. Register in `src/server.ts` (MUTATING). Description above.
+1. Add `src/tools/delete-label.ts` with Zod schema `{ name: z.string().min(1) }`.
+2. Add `ImapClient.deleteLabel(name: string): Promise<DeleteLabelResult>` with `@Audited('delete_label')`.
+   - Constructs `Labels/<name>` internally, delegates to shared `#deleteMailbox(path, prefix)`.
+   - Returns `{ name, deleted: true/false }`.
+3. On `OperationLogInterceptor`: `@IrreversibleWhen` — clears log only when `deleted: true`.
+4. Add `DeleteLabelResult { name: string; deleted: boolean }` to `src/types/operations.ts`.
+5. Register in `src/server.ts` (DESTRUCTIVE).
 6. Update `CLAUDE.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `README.md`.
-
-### Open question for implementation
-
-How to reliably determine each labeled message's source mailbox (non-label folder) from within
-`Labels/<name>`. Investigate imapflow FETCH headers (Message-ID cross-reference) and Proton
-Bridge behaviour. Document findings in ARCHITECTURE.md.
 
 ### Acceptance criteria
 
-- Deletion removes label from `list_labels`.
+- Deletion removes label from `get_labels`.
 - Underlying emails remain in source folders.
-- `revert_operations` recreates the label and re-associates all emails.
-- `"Labels/"` or non-`Labels/` path → `FORBIDDEN`.
-- Non-existent label → `NOT_FOUND`.
+- `{ deleted: false }` for non-existent labels (idempotent).
+- After deletion (with `deleted: true`), `revert_operations` → `UNKNOWN_OPERATION_ID`.
+- `create_label` reversal (via `revert_operations`) calls `deleteLabel` to remove newly created labels.
 
 ---
 

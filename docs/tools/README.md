@@ -33,6 +33,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
   - [mark_unread](#mark_unread)
   - [add_labels](#add_labels)
   - [remove_labels](#remove_labels)
+  - [revert_operations](#revert_operations)
 - [Maintenance](#maintenance)
   - [verify_connectivity](#verify_connectivity)
   - [drain_connections](#drain_connections)
@@ -539,6 +540,42 @@ Remove one or more Proton Mail labels from a batch of emails. Removes the email 
 | `REMOVE_FAILED` | IMAP operation failed |
 
 > **Note:** `removed: false` when an email was not found in the label folder is **not** treated as an error — the item succeeds with `removed: false`. This is idempotent: calling `remove_labels` twice produces the same result.
+
+---
+
+### `revert_operations`
+
+Reverse all operations from the most recent back to (and including) the specified operation ID, in reverse chronological order. Best-effort: continues past individual failures. Removes successfully reverted records from the operation log.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` &nbsp; `openWorldHint: true` |
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `operationId` | `number` | The operation ID to revert back to (inclusive). Obtained from a prior mutating tool response. |
+
+**Returns:** `RevertResult`
+
+```jsonc
+{
+  "stepsTotal": 3,
+  "stepsSucceeded": 2,
+  "stepsFailed": 1,
+  "steps": [
+    { "operationId": 5, "tool": "mark_read", "status": "succeeded" },
+    { "operationId": 4, "tool": "move_emails", "status": "succeeded" },
+    { "operationId": 3, "tool": "add_labels", "status": "failed", "error": "IMAP connection lost" }
+  ]
+}
+```
+
+**Error conditions:**
+- `UNKNOWN_OPERATION_ID` — the given ID is not in the operation log (evicted from ring buffer, cleared by `@IrreversibleWhen`, or server restarted)
+
+> **Note:** Reversal is best-effort. If one step fails, subsequent steps still execute. Successfully reverted records are removed from the log; failed records remain for retry. UID rewriting handles chain reverts where a move changes email UIDs mid-revert.
 
 ---
 

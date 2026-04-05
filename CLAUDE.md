@@ -192,7 +192,9 @@ EDDs are living documents. When refactoring changes the implementation, always p
 
 1. As a **QE**, you define smoke tests + regression tests, updates GitHub issue
 2. As a **SWE**, you write an EDD in `docs/plans/edd-{issue#}-{title}.md`
+   - For each mutating operation, include an **idempotency analysis**: what happens when called on data already in the target state? Is the response shape stable? What does reverting a no-op do?
 3. As a **QE**, you review EDD, enhances with unit test plan
+   - Smoke tests must include **no-op scenarios** for every mutating tool — calling the tool when data is already in the target state — and verify the response shape is stable
 4. As a **Reviewer**, you reviews EDD
 5. Loop steps 2-4 until EDD is ready for user review
 6. **User approves EDD**
@@ -239,6 +241,7 @@ When the **User** reports a bug during smoke testing:
 - Fail fast: Write code with fail-fast logic by default. Do not swallow exceptions with errors or warnings
 - No fallback logic: Do not add fallback logic unless explicitly told to and agreed with the user
 - No guessing: Do not say "The issue is..." before you actually know what the issue is. Investigate first.
+- Idempotent operations must not produce destructive side effects: when a mutating operation succeeds but changes nothing (e.g., removing a flag that wasn't set), the reversal must be harmless. Compare before/after state to detect no-ops. Capture pre-operation state where needed (e.g., `flagsBefore`).
 
 ## Pre-commit Checklist
 

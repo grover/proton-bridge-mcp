@@ -29,7 +29,7 @@ describe('handleRevertOperations', () => {
 
     // Create a tracked operation first
     const items: BatchItemResult<FlagResult>[] = [
-      { id: { uid: 1, mailbox: 'INBOX' }, status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+      { id: { uid: 1, mailbox: 'INBOX' }, status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
     ];
     mock(imap.setFlag).mockResolvedValue(items);
     const markResult = await interceptor.markRead([{ uid: 1, mailbox: 'INBOX' }]);

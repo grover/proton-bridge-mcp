@@ -111,8 +111,8 @@ describe('OperationLogInterceptor', () => {
     it('delegates to imap.setFlag and returns operationId', async () => {
       const ids = [eid(1), eid(2)];
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 
@@ -125,9 +125,9 @@ describe('OperationLogInterceptor', () => {
     it('builds correct mark_read reversal with succeeded IDs', async () => {
       const ids = [eid(1), eid(2), eid(3)];
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
         { id: eid(2), status: 'failed', error: { code: 'IMAP_ERROR', message: 'fail' } },
-        { id: eid(3), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(3), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 
@@ -142,13 +142,42 @@ describe('OperationLogInterceptor', () => {
         ids: [eid(1), eid(3)],
       });
     });
+
+    it('does NOT track when all emails already have \\Seen (no-op)', async () => {
+      const ids = [eid(1)];
+      const items: BatchItemResult<FlagResult>[] = [
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValue(items);
+
+      const result = await interceptor.markRead(ids);
+
+      expect(result).not.toHaveProperty('operationId');
+      expect(log.size).toBe(0);
+    });
+
+    it('mixed batch: only tracks emails whose flags actually changed', async () => {
+      const ids = [eid(1), eid(2)];
+      const items: BatchItemResult<FlagResult>[] = [
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },       // changed
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: ['\\Seen'] } }, // no-op
+      ];
+      mock(imap.setFlag).mockResolvedValue(items);
+
+      const result = await interceptor.markRead(ids);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+      const records = log.getFrom(operationId);
+
+      expect(records).toHaveLength(1);
+      expect(records[0]!.reversal).toEqual({ type: 'mark_read', ids: [eid(1)] });
+    });
   });
 
   describe('markUnread', () => {
     it('delegates to imap.setFlag and returns operationId', async () => {
       const ids = [eid(1)];
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: [] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 
@@ -161,8 +190,8 @@ describe('OperationLogInterceptor', () => {
     it('builds correct mark_unread reversal', async () => {
       const ids = [eid(1), eid(2)];
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: [] } },
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: [] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 
@@ -176,6 +205,19 @@ describe('OperationLogInterceptor', () => {
         type: 'mark_unread',
         ids: [eid(1), eid(2)],
       });
+    });
+
+    it('does NOT track when all emails already lack \\Seen (no-op)', async () => {
+      const ids = [eid(1)];
+      const items: BatchItemResult<FlagResult>[] = [
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: [] } },
+      ];
+      mock(imap.setFlag).mockResolvedValue(items);
+
+      const result = await interceptor.markUnread(ids);
+
+      expect(result).not.toHaveProperty('operationId');
+      expect(log.size).toBe(0);
     });
   });
 
@@ -242,8 +284,8 @@ describe('OperationLogInterceptor', () => {
 
     it('reverses mark_read — calls imap.setFlag with \\Seen false', async () => {
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 
@@ -260,7 +302,7 @@ describe('OperationLogInterceptor', () => {
 
     it('reverses mark_unread — calls imap.setFlag with \\Seen true', async () => {
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: [] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 
@@ -278,13 +320,13 @@ describe('OperationLogInterceptor', () => {
     it('processes in reverse chronological order', async () => {
       // Push 3 operations
       const flagItems1: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       const flagItems2: BatchItemResult<FlagResult>[] = [
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       const flagItems3: BatchItemResult<FlagResult>[] = [
-        { id: eid(3), status: 'succeeded', data: { flagsAfter: [] } },
+        { id: eid(3), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
       ];
 
       mock(imap.setFlag).mockResolvedValueOnce(flagItems1);
@@ -314,14 +356,14 @@ describe('OperationLogInterceptor', () => {
     it('removes only successfully reverted records from log', async () => {
       // Push two mark_read ops; make the second one's reversal fail
       const items1: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValueOnce(items1);
       const r1 = await interceptor.markRead([eid(1)]);
       const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
 
       const items2: BatchItemResult<FlagResult>[] = [
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValueOnce(items2);
       const r2 = await interceptor.markRead([eid(2)]);
@@ -343,14 +385,14 @@ describe('OperationLogInterceptor', () => {
     it('continues on error (best-effort) — first fails, second succeeds', async () => {
       // Two mark_read ops
       const items1: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValueOnce(items1);
       const r1 = await interceptor.markRead([eid(1)]);
       const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
 
       const items2: BatchItemResult<FlagResult>[] = [
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValueOnce(items2);
       await interceptor.markRead([eid(2)]);
@@ -375,14 +417,14 @@ describe('OperationLogInterceptor', () => {
     it('returns correct summary counts', async () => {
       // Two operations: op2 reversal fails, op1 succeeds
       const items1: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: [] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
       ];
       mock(imap.setFlag).mockResolvedValueOnce(items1);
       const r1 = await interceptor.markUnread([eid(1)]);
       const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
 
       const items2: BatchItemResult<FlagResult>[] = [
-        { id: eid(2), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValueOnce(items2);
       await interceptor.markRead([eid(2)]);
@@ -400,7 +442,7 @@ describe('OperationLogInterceptor', () => {
 
     it('revert calls imap directly — no new log entries created during revert', async () => {
       const items: BatchItemResult<FlagResult>[] = [
-        { id: eid(1), status: 'succeeded', data: { flagsAfter: ['\\Seen'] } },
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 

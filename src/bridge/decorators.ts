@@ -57,11 +57,6 @@ export function Tracked(toolName: string, buildReversal: BuildReversalFn) {
 }
 
 /**
- * Method decorator — after the method succeeds, clears the entire operation log.
- * Reserved for irreversible operations (e.g. delete_folder).
- * Requires the class to have a public `log: OperationLog` property.
- */
-/**
  * Predicate that inspects the method result to decide whether the log should be cleared.
  */
 export type ShouldClearFn = (result: unknown) => boolean;

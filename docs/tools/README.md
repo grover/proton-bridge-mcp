@@ -292,14 +292,14 @@ Delete a user-created mail folder. The path must be under `Folders/`. Protected 
 
 ```jsonc
 {
-  "path": "Folders/Work"   // Path of the deleted folder
+  "path": "Folders/Work",  // Path of the folder
+  "deleted": true          // true = deleted; false = folder didn't exist (idempotent)
 }
 ```
 
 **Error conditions:**
 - `INVALID_PATH` — path does not start with `"Folders/"`, is bare `"Folders/"`, or is empty after stripping trailing slashes
 - `FORBIDDEN` — path is a special-use folder or not under `Folders/`
-- `NOT_FOUND` — folder does not exist
 - IMAP failure -> top-level thrown error
 
 ---

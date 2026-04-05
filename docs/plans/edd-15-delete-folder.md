@@ -190,28 +190,30 @@ With `deleteFolder` available, `createFolder` tracking was upgraded from noop to
 
 ## Idempotency Analysis
 
+Originally designed as non-idempotent (throwing NOT_FOUND for non-existent folders). Changed during smoke testing to match `createFolder`'s idempotent pattern.
+
 | Scenario | Behavior | Response shape |
 |---|---|---|
-| Folder exists | Deleted, log cleared | `{ status: 'succeeded', data: { path } }` |
-| Folder doesn't exist | NOT_FOUND error thrown | Error |
-| Folder already deleted (repeat call) | NOT_FOUND error thrown | Error |
-| `@Irreversible` on error | Log NOT cleared (error thrown before `log.clear()`) | Error |
+| Folder exists | Deleted, log cleared | `{ status: 'succeeded', data: { path, deleted: true } }` |
+| Folder doesn't exist | Success (no-op), log NOT cleared | `{ status: 'succeeded', data: { path, deleted: false } }` |
+| Folder already deleted (repeat call) | Same as "doesn't exist" | `{ status: 'succeeded', data: { path, deleted: false } }` |
+| `@IrreversibleWhen` on error | Log NOT cleared (error thrown before predicate check) | Error |
 
-`delete_folder` is **not idempotent** — calling it on an already-deleted folder produces NOT_FOUND. This is intentional: unlike `createFolder` (which returns `created: false`), there is no meaningful "already deleted" success state.
+`delete_folder` **is idempotent** — calling it on an already-deleted folder returns `{ deleted: false }`. The operation log is only cleared when `deleted: true` (actual deletion happened), using `@IrreversibleWhen(predicate)` instead of unconditional `@Irreversible`.
 
-**Reverting a delete_folder:** Not applicable. `@Irreversible` clears the log, so there is no operation record to revert. The tool description warns users of this.
+**Reverting a delete_folder:** Not applicable. When `deleted: true`, `@IrreversibleWhen` clears the log — no operation record to revert. When `deleted: false`, the log is preserved but no record was added (no `@Tracked`).
 
 ## Edge Cases
 
 | Scenario | Expected behavior |
 |---|---|
-| `path: "Folders/Work"` (exists, no specialUse) | Deleted, log cleared, returns `{ path: "Folders/Work" }` |
+| `path: "Folders/Work"` (exists, no specialUse) | Deleted, log cleared, returns `{ path: "Folders/Work", deleted: true }` |
 | `path: "INBOX"` | INVALID_PATH (tool handler — doesn't start with Folders/) |
 | `path: "Folders/"` or `"Folders"` | INVALID_PATH (tool handler) |
 | `path: "Sent"` | INVALID_PATH (tool handler — doesn't start with Folders/) |
 | `path: "Labels/Important"` | INVALID_PATH (tool handler — doesn't start with Folders/) |
 | `path: "Folders/WithSpecialUse"` with specialUse set | FORBIDDEN (IMAP client) |
-| Non-existent folder | NOT_FOUND (IMAP client) |
+| Non-existent folder | Success with `deleted: false`, log preserved |
 | Folder with child folders | IMAP error propagates (server-dependent behavior) |
 | `path: "Folders/Work/"` (trailing slash) | Cleaned to `"Folders/Work"`, then processed normally |
 

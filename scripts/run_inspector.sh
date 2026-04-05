@@ -50,6 +50,22 @@ MCP_PORT="${PROTONMAIL_MCP_PORT:-3000}"
 MCP_BASE="${PROTONMAIL_MCP_BASE_PATH:-/mcp}"
 MCP_URL="http://${MCP_HOST}:${MCP_PORT}${MCP_BASE}"
 INSPECTOR_URL="http://localhost:${INSPECTOR_PORT}"
+PROXY_PORT=6277
+
+# ── Kill any process occupying our ports ─────────────────────────────────────
+kill_port() {
+  local port=$1 label=$2
+  local pids
+  pids=$(lsof -ti "tcp:${port}" 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "Killing stale ${label} on port ${port} (PIDs: ${pids//$'\n'/ }) ..."
+    echo "$pids" | xargs kill 2>/dev/null || true
+    sleep 0.5
+  fi
+}
+
+kill_port "$MCP_PORT"   "MCP server"
+kill_port "$PROXY_PORT" "Inspector proxy"
 
 # ── Start MCP server ──────────────────────────────────────────────────────────
 echo ""

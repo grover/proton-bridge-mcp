@@ -57,21 +57,24 @@ MCP_DISPLAY_URL="http://localhost:${MCP_PORT}${MCP_BASE}"
 INSPECTOR_URL="http://localhost:${INSPECTOR_PORT}"
 PROXY_PORT=6277
 
-# ── Kill stale processes if their ports are in use ───────────────────────────
-if [ -f "$PIDFILE" ]; then
-  read -r OLD_SERVER OLD_INSPECTOR < "$PIDFILE" || true
-  if [ -n "${OLD_SERVER:-}" ] && nc -z "$MCP_HOST" "$MCP_PORT" 2>/dev/null; then
-    echo "Killing stale MCP server (PID ${OLD_SERVER}) on port ${MCP_PORT} ..."
-    kill "$OLD_SERVER" 2>/dev/null || true
+# ── Kill any process occupying our ports ─────────────────────────────────────
+# Previous approach relied on a PID file, which missed orphaned processes when
+# the script crashed or the PID file was deleted. Now we unconditionally find
+# and kill whatever is listening on the target ports.
+kill_port() {
+  local port=$1 label=$2
+  local pids
+  pids=$(lsof -ti "tcp:${port}" 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo "Killing stale ${label} on port ${port} (PIDs: ${pids//$'\n'/ }) ..."
+    echo "$pids" | xargs kill 2>/dev/null || true
     sleep 0.5
   fi
-  if [ -n "${OLD_INSPECTOR:-}" ] && nc -z localhost "$PROXY_PORT" 2>/dev/null; then
-    echo "Killing stale Inspector (PID ${OLD_INSPECTOR}) on port ${PROXY_PORT} ..."
-    kill "$OLD_INSPECTOR" 2>/dev/null || true
-    sleep 0.5
-  fi
-  rm -f "$PIDFILE"
-fi
+}
+
+kill_port "$MCP_PORT"      "MCP server"
+kill_port "$PROXY_PORT"    "Inspector proxy"
+rm -f "$PIDFILE"
 
 # ── Cleanup helper (only used on startup failure) ────────────────────────────
 started_pids=()

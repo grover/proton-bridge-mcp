@@ -32,7 +32,7 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 | **read** | `READ_ONLY` | `get_folders`, `get_labels`, `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
 | **mutating** | `MUTATING` | `create_folder`, `create_label`, `mark_read`, `mark_unread`, `add_labels` |
 | **destructive** | `DESTRUCTIVE` | `move_emails`, `remove_labels`, `delete_folder`, `delete_label`, `revert_operations` |
-| **maintenance** | `READ_ONLY` | `verify_connectivity`, `drain_connections` |
+| **maintenance** | `MAINTENANCE` | `verify_connectivity`, `drain_connections` |
 
 - **Maintenance** tools are idempotent, non-destructive operations on the IMAP connection pool — they do not affect the Proton Mail inbox. See `src/tools/verify-connectivity.ts` and `src/tools/drain-connections.ts`.
 - When adding a new tool, assign it to the appropriate category and update `TOOL_CATEGORIES` in the source.

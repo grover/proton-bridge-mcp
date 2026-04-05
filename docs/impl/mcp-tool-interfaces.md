@@ -92,9 +92,11 @@ The `partial` status is critical for LLM consumption: it tells the agent that so
 Every tool declares `annotations` with boolean hints for mutability, destructiveness, and open-world classification. Three presets are defined in `src/server.ts`:
 
 ```typescript
-const READ_ONLY   = { readOnlyHint: true,  destructiveHint: false };
-const MUTATING    = { readOnlyHint: false, destructiveHint: false };
-const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true  };
+const READ_ONLY    = { readOnlyHint: true,  destructiveHint: false, openWorldHint: true  };
+const MUTATING     = { readOnlyHint: false, destructiveHint: false, openWorldHint: true  };
+const DESTRUCTIVE  = { readOnlyHint: false, destructiveHint: true,  openWorldHint: true  };
+const MAINTENANCE  = { readOnlyHint: true,  destructiveHint: false, openWorldHint: false };
+
 ```
 
 ### Mutability Classification
@@ -103,13 +105,16 @@ const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true  };
 
 **MUTATING** — The tool modifies state but the change is **reversible**. It can be undone via `revert_operations` or repeated application is harmless. Examples: flag changes (mark_read, mark_unread), label additions (add_labels), folder creation (create_folder). The LLM should confirm intent with the user before calling, but mistakes are recoverable.
 
-**DESTRUCTIVE** — The tool modifies state in a way that may be **irreversible** or has significant side effects. Examples: moving emails (source UID is invalidated, new UID may be unknown), draining connections (drops active pool state), reverting operations (applies cascading reverse changes). The LLM should exercise extra caution and clearly confirm with the user.
+**DESTRUCTIVE** — The tool modifies state in a way that may be **irreversible** or has significant side effects. Examples: moving emails (source UID is invalidated, new UID may be unknown), reverting operations (applies cascading reverse changes). The LLM should exercise extra caution and clearly confirm with the user.
+
+**MAINTENANCE** — The tool operates on local infrastructure (connection pool, daemon health) with no external data in responses. `openWorldHint: false` — no trust boundary crossed. `readOnlyHint: true` — does not modify email state. Examples: verify_connectivity, drain_connections.
 
 ### Mutability Guidelines for New Tools
 
 1. If it only reads data → `READ_ONLY`
 2. If it changes state but can be cleanly undone → `MUTATING`
 3. If it changes state and may be hard or impossible to undo, or has cascading effects → `DESTRUCTIVE`
+5. If it operates on local infrastructure only (pool, daemon) → `MAINTENANCE`
 4. **When in doubt, prefer DESTRUCTIVE** — it's safer for the LLM to treat an operation as destructive than to underestimate risk
 
 ### Open World Classification

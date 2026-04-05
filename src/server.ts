@@ -19,6 +19,7 @@ import {
   verifyConnectivitySchema,     handleVerifyConnectivity,
   drainConnectionsSchema,       handleDrainConnections,
   addLabelsSchema,              handleAddLabels,
+  removeLabelsSchema,           handleRemoveLabels,
   getLabelsSchema,              handleGetLabels,
   revertOperationsSchema,       handleRevertOperations,
 } from './tools/index.js';
@@ -250,6 +251,18 @@ export function createMcpServer(
     },
     async (args) => ({
       content: [{ type: 'text', text: toText(await handleAddLabels(args, mutOps)) }],
+    }),
+  );
+
+  server.registerTool(
+    'remove_labels',
+    {
+      description: 'Remove one or more Proton Mail labels from a batch of emails. Removes the email copies from label folders; originals remain in their source mailboxes. Supports up to 50 emails per call.',
+      inputSchema: removeLabelsSchema,
+      annotations: DESTRUCTIVE,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleRemoveLabels(args, mutOps)) }],
     }),
   );
 

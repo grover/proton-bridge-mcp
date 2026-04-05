@@ -29,6 +29,7 @@ import type {
   FlagResult,
   AddLabelsBatchResult,
   AddLabelsItemData,
+  RemoveLabelsBatchResult,
 } from '../types/index.js';
 import { batchStatus } from '../types/index.js';
 
@@ -443,6 +444,11 @@ export class ImapClient {
     }
 
     return { status: batchStatus(items), items };
+  }
+
+  @Audited('remove_labels')
+  async removeLabels(_ids: EmailId[], _labelNames: string[]): Promise<RemoveLabelsBatchResult> {
+    throw new Error('Not implemented');
   }
 
   /** Shared helper: fetch per mailbox group, reorder to match input order */

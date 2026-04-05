@@ -214,21 +214,29 @@ node dist/index.js --http \          # HTTP mode — requires auth token
   --bridge-password bridge-generated-password \
   --mcp-auth-token your-secret-token
 
-npm run inspector                    # build + start HTTP server + MCP Inspector (auto-opens browser)
-npm run package                      # build + create proton-bridge-mcp.mcpb for Claude Desktop
+npm run smoketest              # build + start HTTP server + Inspector (verified startup, opens browser after 10s)
+npm run inspector              # build + start HTTP server + Inspector (lightweight, immediate browser open)
+npm run package                # build + create proton-bridge-mcp.mcpb for Claude Desktop
 ```
 
-### Smoke Testing with MCP Inspector
+### Smoke Testing
 
-`npm run inspector` handles everything automatically:
+Smoke tests are always started using `npm run smoketest`. The script:
 1. Builds the project
-2. Loads `.env` credentials (uses the stable `PROTONMAIL_MCP_AUTH_TOKEN` from `.env`)
-3. Starts the MCP server in **HTTP mode** (`--http`) on the configured host/port
-4. Copies `Bearer <token>` to clipboard
-5. Launches the MCP Inspector with the server URL pre-configured
-6. Opens the browser to the Inspector UI
+2. Loads `.env` credentials (uses stable `PROTONMAIL_MCP_AUTH_TOKEN` from `.env` if set, otherwise generates one)
+3. Starts the MCP server in **HTTP mode** (`--http`)
+4. **Verifies** the MCP server is listening on its port (fails with error if not)
+5. Starts the MCP Inspector proxy
+6. **Verifies** the Inspector proxy is listening (fails with error if not)
+7. **Verifies** the Inspector UI is responding
+8. Reports all **processes, PIDs, ports, and tokens** in a summary box
+9. Opens the browser after **10 seconds** (gives everything time to settle)
 
-**First-time setup only:** The MCP Inspector cannot programmatically pre-fill custom HTTP headers ([upstream limitation](https://github.com/modelcontextprotocol/inspector/issues/879)). On first launch, add an `Authorization` header in the Inspector sidebar and paste the Bearer token from your clipboard. The Inspector persists this in `localStorage` — subsequent restarts reuse the same `.env` token, so no re-entry is needed.
+When performing smoke tests, show the **User** the test scenarios to execute, expected outcomes, and any previously failed tests.
+
+**First-time setup only:** Add an `Authorization` header in the Inspector sidebar and paste the Bearer token shown in the summary box. The Inspector persists this in `localStorage` — subsequent restarts reuse the same `.env` token if set.
+
+**Debugging during smoke tests:** Use the "Debug MCP Smoke Test" launch config in VS Code. It launches the MCP server under the debugger with the Inspector as a pre-launch task, so you can set breakpoints in tool handlers while exercising them through the Inspector UI.
 
 ## CI & Release
 

@@ -5,6 +5,7 @@ import { isEmailId, formatEmailId } from './types/email.js';
 import {
   getFoldersSchema,             handleGetFolders,
   createFolderSchema,           handleCreateFolder,
+  deleteFolderSchema,           handleDeleteFolder,
   listMailboxSchema,            handleListMailbox,
   fetchSummariesSchema,         handleFetchSummaries,
   fetchMessageSchema,           handleFetchMessage,
@@ -67,6 +68,18 @@ export function createMcpServer(
     },
     async (args) => ({
       content: [{ type: 'text', text: toText(await handleCreateFolder(args, mutOps)) }],
+    }),
+  );
+
+  server.registerTool(
+    'delete_folder',
+    {
+      description: "Delete a mail folder. The path must be under Folders/ — Folders/ itself, special-use folders (INBOX, Sent, Drafts, Trash, etc.), and paths outside Folders/ are rejected. Emails are retained in Proton's backend. Warning: this operation clears the operation history — no prior operations can be reverted after calling delete_folder.",
+      inputSchema: deleteFolderSchema,
+      annotations: DESTRUCTIVE,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleDeleteFolder(args, mutOps)) }],
     }),
   );
 

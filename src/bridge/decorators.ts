@@ -57,10 +57,34 @@ export function Tracked(toolName: string, buildReversal: BuildReversalFn) {
 }
 
 /**
- * Method decorator — after the method succeeds, clears the entire operation log.
- * Reserved for irreversible operations (e.g. delete_folder).
+ * Predicate that inspects the method result to decide whether the log should be cleared.
+ */
+export type ShouldClearFn = (result: unknown) => boolean;
+
+/**
+ * Method decorator — after the method succeeds, clears the operation log only when
+ * `shouldClear(result)` returns true. Use for conditionally irreversible operations
+ * (e.g. delete_folder: clears log when the folder was actually deleted, not on no-op).
  * Requires the class to have a public `log: OperationLog` property.
  */
+export function IrreversibleWhen(shouldClear: ShouldClearFn) {
+  return function (
+    _target: object,
+    _propertyKey: string | symbol,
+    descriptor: PropertyDescriptor,
+  ): PropertyDescriptor {
+    const original = descriptor.value as (this: { log: OperationLog }, ...args: unknown[]) => Promise<unknown>;
+    descriptor.value = async function (this: { log: OperationLog }, ...args: unknown[]) {
+      const result = await original.apply(this, args);
+      if (shouldClear(result)) {
+        this.log.clear();
+      }
+      return result;
+    };
+    return descriptor;
+  };
+}
+
 export function Irreversible(
   _target: object,
   _propertyKey: string | symbol,

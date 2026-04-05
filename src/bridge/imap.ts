@@ -16,6 +16,7 @@ import type {
   FolderInfo,
   LabelInfo,
   CreateFolderResult,
+  DeleteFolderResult,
   MoveBatchResult,
   FlagBatchResult,
   BatchItemResult,
@@ -86,6 +87,33 @@ export class ImapClient {
         return { path, created: false };
       }
       throw err;
+    } finally {
+      this.#pool.release(conn);
+    }
+  }
+
+  @Audited('delete_folder')
+  async deleteFolder(path: string): Promise<DeleteFolderResult> {
+    const cleaned = path.replace(/\/+$/, '');
+
+    if (!cleaned.startsWith('Folders/') || cleaned === 'Folders/') {
+      throw new Error('FORBIDDEN: can only delete folders under Folders/');
+    }
+
+    const conn = await this.#pool.acquire();
+    try {
+      const mailboxes = await conn.list();
+      const target = mailboxes.find((mb: { path: string }) => mb.path === cleaned);
+
+      if (!target) {
+        return { path: cleaned, deleted: false };
+      }
+      if ((target as { specialUse?: string }).specialUse) {
+        throw new Error('FORBIDDEN: cannot delete special-use folder');
+      }
+
+      await conn.mailboxDelete(cleaned);
+      return { path: cleaned, deleted: true };
     } finally {
       this.#pool.release(conn);
     }

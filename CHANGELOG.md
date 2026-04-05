@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `delete_folder` MCP tool — delete user-created mail folders under `Folders/`. Protected and special-use folders are rejected. Clears the operation log on success (`@Irreversible`), so no prior operations can be reverted afterward. Annotated as DESTRUCTIVE. (#15)
 - Jest test infrastructure (`jest.config.ts`, `tsconfig.test.json`, ESLint test config)
 - `formatEmailId`, `parseEmailId`, `isEmailId` utilities and `emailIdStringSchema` Zod schema in `src/types/email.ts`
 - Unit tests for EmailId utilities (31 tests)

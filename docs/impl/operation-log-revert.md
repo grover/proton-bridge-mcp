@@ -59,7 +59,7 @@ IMAP flag operations are idempotent — adding a flag that already exists or rem
 
 **Detection:** `setFlag` fetches `flagsBefore` for all emails in a mailbox group before modifying. It skips emails already in the target state and returns both `flagsBefore` and `flagsAfter` in `FlagResult`. `buildFlagReversal` compares the two: only emails where the flag actually changed are included in the reversal.
 
-**Stable response shape:** When `buildReversal` returns `null` (all no-ops, or tools like `create_folder` whose reversal isn't implemented yet), `@Tracked` records a `{ type: 'noop' }` entry. This ensures `operationId` is **always present** in every mutating tool response. LLM clients never need to check whether the field exists — it's always a number.
+**Stable response shape:** When `buildReversal` returns `null` (all no-ops, e.g. `create_folder` with `created: false`, or tools like `add_labels` whose reversal isn't implemented yet), `@Tracked` records a `{ type: 'noop' }` entry. This ensures `operationId` is **always present** in every mutating tool response. LLM clients never need to check whether the field exists — it's always a number.
 
 **Reverting a noop:** `#executeReversal` handles `type: 'noop'` by doing nothing. The revert reports `stepsSucceeded: 1` — the "undo nothing" operation succeeds.
 
@@ -112,8 +112,9 @@ A ring buffer holding up to `maxSize` (default 100, [configurable](#configuratio
 
 Wraps `ImapClient` for mutating operations. Each tracked method delegates to `ImapClient`, wraps the raw result into the tool result shape (`BatchToolResult` or `SingleToolResult`), then the `@Tracked` decorator builds a `ReversalSpec` and pushes it to the log.
 
-Currently tracked: `move_emails`, `mark_read`, `mark_unread`.
-Not yet tracked: `create_folder`, `add_labels` (require `deleteFolder`/`deleteEmails` — see TODO.md).
+Currently tracked: `move_emails`, `mark_read`, `mark_unread`, `create_folder`.
+`delete_folder` uses `@Irreversible` — clears the entire log on success.
+Not yet tracked: `add_labels` (requires `deleteEmails` — see TODO.md).
 
 The interceptor also owns `revertOperations()`, which retrieves records from the log, executes each reversal against `ImapClient` directly, and removes successfully reverted records.
 
@@ -122,9 +123,10 @@ The interceptor also owns `revertOperations()`, which retrieves records from the
 | Decorator | Applied to | Requires | Behavior |
 |---|---|---|---|
 | `@Tracked(tool, buildReversal)` | Interceptor methods | `log: OperationLog` | After success: build `ReversalSpec`, push to log, extend result with `operationId`. If `buildReversal` returns `null`, skip tracking. |
-| `@Irreversible` | Future `deleteFolder` | `log: OperationLog` | After success: `log.clear()`. All prior operation IDs become unknown. |
+| `@IrreversibleWhen(predicate)` | `deleteFolder` | `log: OperationLog` | After success: call `predicate(result)` — if true, `log.clear()`. Used for conditionally irreversible operations (e.g. `deleteFolder` only clears when `deleted: true`). |
+| `@Irreversible` | (available, not currently used) | `log: OperationLog` | After success: `log.clear()` unconditionally. All prior operation IDs become unknown. |
 
-Both use TypeScript's `experimentalDecorators` API, same as the existing [`@Audited`](auditing.md) decorator on `ImapClient`.
+All use TypeScript's `experimentalDecorators` API, same as the existing [`@Audited`](auditing.md) decorator on `ImapClient`.
 
 **`ReversalSpec`** (`src/types/operations.ts`)
 

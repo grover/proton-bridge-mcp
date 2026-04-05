@@ -31,7 +31,7 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 |---|---|---|
 | **read** | `READ_ONLY` | `get_folders`, `get_labels`, `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
 | **mutating** | `MUTATING` | `create_folder`, `mark_read`, `mark_unread`, `add_labels` |
-| **destructive** | `DESTRUCTIVE` | `move_emails`, `revert_operations` |
+| **destructive** | `DESTRUCTIVE` | `move_emails`, `delete_folder`, `revert_operations` |
 | **maintenance** | `READ_ONLY` | `verify_connectivity`, `drain_connections` |
 
 - **Maintenance** tools are idempotent, non-destructive operations on the IMAP connection pool — they do not affect the Proton Mail inbox. See `src/tools/verify-connectivity.ts` and `src/tools/drain-connections.ts`.
@@ -39,9 +39,10 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 
 ### Operation Log and Revert
 See [docs/impl/operation-log-revert.md](docs/impl/operation-log-revert.md) for full design rationale, architecture, and implementation guide.
-- Tracked tools (`move_emails`, `mark_read`, `mark_unread`) return `operationId` in responses
+- Tracked tools (`move_emails`, `mark_read`, `mark_unread`, `create_folder`) return `operationId` in responses
 - `revert_operations` undoes a range of operations in reverse chronological order (best-effort)
-- Not yet tracked: `create_folder`, `add_labels` (see TODO.md)
+- `delete_folder` uses `@IrreversibleWhen` — clears the operation log only when the folder was actually deleted
+- Not yet tracked: `add_labels` (requires `deleteEmails` — see TODO.md)
 
 ### Interface Segregation
 - Tool handlers depend on **interfaces** (`ReadOnlyMailOps`, `MutatingMailOps` in `src/types/mail-ops.ts`), not concrete classes.
@@ -235,7 +236,7 @@ When the **User** reports a bug during smoke testing:
 
 # Engineering principles
 
-- Apply TDD
+- **Apply TDD — no exceptions.** Every new behavior, bug fix, or feature change MUST follow red-green-refactor: (1) write the test first, (2) verify it fails (RED), (3) implement until it passes (GREEN), (4) refactor. This applies to all code changes — initial implementation, mid-flight additions, and scope expansions discovered during development. Never write implementation code before its test exists and has been verified to fail. Skipping TDD is a process violation even when the end result is correct.
 - Clean code (Uncle Bob): SRP, DRY, meaningful names, no dead code, early returns, small functions, readable file structure
 - Accurate minimal code documentation
 - Fail fast: Write code with fail-fast logic by default. Do not swallow exceptions with errors or warnings

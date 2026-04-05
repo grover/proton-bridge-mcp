@@ -25,6 +25,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
   - [search_mailbox](#search_mailbox)
 - [Write Operations](#write-operations)
   - [create_folder](#create_folder)
+  - [delete_folder](#delete_folder)
   - [move_emails](#move_emails)
   - [mark_read](#mark_read)
   - [mark_unread](#mark_unread)
@@ -267,6 +268,38 @@ Create a new mail folder under `Folders/`. Supports nested paths — intermediat
 
 **Error conditions:**
 - `INVALID_PATH` — path does not start with `"Folders/"`, is bare `"Folders/"`, or is empty after stripping trailing slashes
+- IMAP failure -> top-level thrown error
+
+---
+
+### `delete_folder`
+
+Delete a user-created mail folder. The path must be under `Folders/`. Protected folders (INBOX, Sent, Drafts, Trash, etc.) and special-use folders cannot be deleted. Emails are retained in Proton's backend. **Warning:** this operation clears the operation history — no prior operations can be reverted after calling `delete_folder`.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` |
+
+> **Destructive & Irreversible:** Deleting a folder clears the entire operation log. No prior operations can be reverted afterward.
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `path` | `string` | Full IMAP path of the folder to delete (must start with `"Folders/"`). Example: `"Folders/Work"` |
+
+**Returns:** `DeleteFolderResult`
+
+```jsonc
+{
+  "path": "Folders/Work"   // Path of the deleted folder
+}
+```
+
+**Error conditions:**
+- `INVALID_PATH` — path does not start with `"Folders/"`, is bare `"Folders/"`, or is empty after stripping trailing slashes
+- `FORBIDDEN` — path is a special-use folder or not under `Folders/`
+- `NOT_FOUND` — folder does not exist
 - IMAP failure -> top-level thrown error
 
 ---

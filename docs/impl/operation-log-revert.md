@@ -122,7 +122,7 @@ The interceptor also owns `revertOperations()`, which retrieves records from the
 | Decorator | Applied to | Requires | Behavior |
 |---|---|---|---|
 | `@Tracked(tool, buildReversal)` | Interceptor methods | `log: OperationLog` | After success: build `ReversalSpec`, push to log, extend result with `operationId`. If `buildReversal` returns `null`, skip tracking. |
-| `@Irreversible` | Future `deleteFolder` | `log: OperationLog` | After success: `log.clear()`. All prior operation IDs become unknown. |
+| `@Irreversible` | `deleteFolder` | `log: OperationLog` | After success: `log.clear()`. All prior operation IDs become unknown. |
 
 Both use TypeScript's `experimentalDecorators` API, same as the existing [`@Audited`](auditing.md) decorator on `ImapClient`.
 

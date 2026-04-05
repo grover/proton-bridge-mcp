@@ -249,6 +249,7 @@ For **full documentation** — including input schemas, return types, and exampl
 | `get_folders` | read-only | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
 | `get_labels` | read-only | List all Proton Mail labels with message counts, unread counts, and IMAP metadata |
 | `create_folder` | mutating | Create a new mail folder under `Folders/` (supports nested paths) |
+| `delete_folder` | destructive | Delete a mail folder under `Folders/` (clears operation history) |
 | `list_mailbox` | read-only | Browse emails in a mailbox, newest first, with pagination |
 | `fetch_summaries` | read-only | Fetch envelope data (from, to, subject, date, flags) for known email IDs |
 | `fetch_message` | read-only | Fetch full message body (text/HTML) and attachment metadata |

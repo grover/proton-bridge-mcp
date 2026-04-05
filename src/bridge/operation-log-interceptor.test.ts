@@ -256,6 +256,44 @@ describe('OperationLogInterceptor', () => {
     });
   });
 
+  // ── Irreversible method tests ─────────────────────────────────────────────
+
+  describe('deleteFolder', () => {
+    it('delegates to imap.deleteFolder and returns SingleToolResult without operationId', async () => {
+      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/Work' });
+
+      const result = await interceptor.deleteFolder('Folders/Work');
+
+      expect(imap.deleteFolder).toHaveBeenCalledWith('Folders/Work');
+      expect(result).toEqual({ status: 'succeeded', data: { path: 'Folders/Work' } });
+      expect(result).not.toHaveProperty('operationId');
+    });
+
+    it('clears the operation log on success', async () => {
+      // Pre-populate the log with a tracked operation
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/A', created: true });
+      await interceptor.createFolder('Folders/A');
+      expect(log.size).toBe(1);
+
+      mock(imap.deleteFolder).mockResolvedValue({ path: 'Folders/A' });
+      await interceptor.deleteFolder('Folders/A');
+
+      expect(log.size).toBe(0);
+    });
+
+    it('does not clear the log when imap.deleteFolder throws', async () => {
+      // Pre-populate the log
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/A', created: true });
+      await interceptor.createFolder('Folders/A');
+      expect(log.size).toBe(1);
+
+      mock(imap.deleteFolder).mockRejectedValue(new Error('NOT_FOUND'));
+
+      await expect(interceptor.deleteFolder('Folders/Missing')).rejects.toThrow('NOT_FOUND');
+      expect(log.size).toBe(1);
+    });
+  });
+
   describe('addLabels', () => {
     it('delegates to imap.addLabels and returns operationId (noop — reversal not yet implemented)', async () => {
       const ids = [eid(1)];

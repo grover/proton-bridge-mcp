@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { AttachmentContent } from '../types/index.js';
+import type { SingleToolResult, AttachmentContent } from '../types/index.js';
 
 export const fetchAttachmentSchema = {
   id: z.object({
@@ -14,6 +14,7 @@ export const fetchAttachmentSchema = {
 export async function handleFetchAttachment(
   args: { id: { uid: number; mailbox: string }; partId: string },
   imap: ImapClient,
-): Promise<AttachmentContent> {
-  return imap.fetchAttachment(args.id, args.partId);
+): Promise<SingleToolResult<AttachmentContent>> {
+  const data = await imap.fetchAttachment(args.id, args.partId);
+  return { status: 'succeeded' as const, data };
 }

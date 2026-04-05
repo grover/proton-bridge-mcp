@@ -11,13 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `get_labels` MCP tool — list all Proton Mail labels with message counts, unread counts, and IMAP metadata; complements `get_folders` using a shared `#listMailboxes` helper
 - `add_labels` MCP tool — add one or more Proton Mail labels to a batch of emails via IMAP COPY; returns per-email results including new UIDs in label folders
-- `AddLabelsBatchResult`, `AddLabelsItem`, `AddLabelsItemData` types in `src/types/operations.ts`
+- `AddLabelsBatchResult`, `AddLabelsItemData` types in `src/types/operations.ts`
 - `create_folder` MCP tool — creates new mail folders under `Folders/` with recursive nested path support (e.g. `Folders/Work/Projects`); returns whether the folder was newly created or already existed
+- `ToolStatus`, `ItemStatus`, `BatchToolResult<T>`, `ListToolResult<T>`, `SingleToolResult<T>` types for standardized tool responses
+- `batchStatus()` utility to compute top-level status from per-item statuses
+- `status: ItemStatus` field on `BatchItemResult<T>` for per-item success/failure tracking
 
 ### Changed
 
 - Simplified the release
 - `get_folders` MCP tool replaces `list_folders` — enriched per-folder metadata (message count, unread count, UID next, listed/subscribed status) via inline STATUS query; filters out Proton labels (`Labels/`), the `Starred` virtual mailbox, and the `Labels` root
+- All tool handlers now return standardized wrapper types with top-level `status` field
+- `verify_connectivity` removes `success` boolean; uses `SingleToolResult` with `status: 'succeeded'/'failed'` and `data: { latencyMs?, error? }`
+- `drain_connections` reclassified from `READ_ONLY` to `DESTRUCTIVE` annotation
+- `AddLabelsItem` unified into `BatchItemResult<AddLabelsItemData[]>` (removed separate type)
 
 ## [0.2.0] - 2026-04-04
 

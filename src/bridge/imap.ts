@@ -23,9 +23,9 @@ import type {
   MoveResult,
   FlagResult,
   AddLabelsBatchResult,
-  AddLabelsItem,
   AddLabelsItemData,
 } from '../types/index.js';
+import { batchStatus } from '../types/index.js';
 
 export class ImapClient {
   readonly audit: AuditLogger;
@@ -252,7 +252,7 @@ export class ImapClient {
 
   @Audited('move_emails')
   async moveEmails(ids: EmailId[], targetMailbox: string): Promise<MoveBatchResult> {
-    const results: Array<BatchItemResult<MoveResult>> = ids.map(id => ({ id }));
+    const results: Array<BatchItemResult<MoveResult>> = ids.map(id => ({ id, status: 'failed' as const }));
 
     // Group by source mailbox
     const groups = groupByMailbox(ids);
@@ -268,6 +268,7 @@ export class ImapClient {
             const targetUid = moved !== false ? moved.uidMap?.get(id.uid) : undefined;
             results[index] = {
               id,
+              status: 'succeeded',
               data: {
                 fromMailbox: mailbox,
                 toMailbox:   targetMailbox,
@@ -277,6 +278,7 @@ export class ImapClient {
           } catch (err) {
             results[index] = {
               id,
+              status: 'failed',
               error: { code: 'MOVE_FAILED', message: err instanceof Error ? err.message : String(err) },
             };
           }
@@ -292,7 +294,7 @@ export class ImapClient {
 
   @Audited('set_flag')
   async setFlag(ids: EmailId[], flag: string, add: boolean): Promise<FlagBatchResult> {
-    const results: Array<BatchItemResult<FlagResult>> = ids.map(id => ({ id }));
+    const results: Array<BatchItemResult<FlagResult>> = ids.map(id => ({ id, status: 'failed' as const }));
     const groups = groupByMailbox(ids);
 
     for (const { mailbox, entries } of groups) {
@@ -311,10 +313,11 @@ export class ImapClient {
             for await (const msg of conn.fetch(String(id.uid), { uid: true, flags: true }, { uid: true })) {
               flagsAfter.push(...(msg.flags ? [...msg.flags] : []));
             }
-            results[index] = { id, data: { flagsAfter } };
+            results[index] = { id, status: 'succeeded', data: { flagsAfter } };
           } catch (err) {
             results[index] = {
               id,
+              status: 'failed',
               error: { code: 'FLAG_FAILED', message: err instanceof Error ? err.message : String(err) },
             };
           }
@@ -331,7 +334,7 @@ export class ImapClient {
   @Audited('add_labels')
   async addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult> {
     const labelPaths = labelNames.map(name => `Labels/${name}`);
-    const items: AddLabelsItem[] = ids.map(id => ({ id }));
+    const items: Array<BatchItemResult<AddLabelsItemData[]>> = ids.map(id => ({ id, status: 'failed' as const }));
     const groups = groupByMailbox(ids);
 
     const conn = await this.#pool.acquire();
@@ -358,9 +361,9 @@ export class ImapClient {
             }
 
             if (itemError) {
-              items[index] = { id, error: itemError };
+              items[index] = { id, status: 'failed', error: itemError };
             } else {
-              items[index] = { id, data: labelResults };
+              items[index] = { id, status: 'succeeded', data: labelResults };
             }
           }
         } finally {
@@ -371,7 +374,7 @@ export class ImapClient {
       this.#pool.release(conn);
     }
 
-    return { items };
+    return { status: batchStatus(items), items };
   }
 
   /** Shared helper: fetch per mailbox group, reorder to match input order */

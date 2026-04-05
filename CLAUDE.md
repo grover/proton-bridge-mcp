@@ -103,6 +103,17 @@ Every public `ImapClient` method must be decorated with `@Audited('operation_nam
 Wraps the method in `this.audit.wrap()` — no manual audit calls needed in method bodies.
 The class must expose `audit: AuditLogger` as a public property (not private).
 
+### Standardized Tool Result Structure
+Every tool response includes a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
+Three wrapper types:
+- `BatchToolResult<T>` — batch-mutating tools: `{ status, items: BatchItemResult<T>[] }`
+- `ListToolResult<T>` — read-only array tools: `{ status, items: T[] }`
+- `SingleToolResult<T>` — single-item tools: `{ status, data: T }`
+
+Each `BatchItemResult<T>` also carries `status: ItemStatus` (`'succeeded' | 'failed'`).
+Use `batchStatus(items)` utility to compute the top-level status from per-item statuses.
+Read-only tools always return `status: 'succeeded'` (they throw on failure).
+
 ### Batch Operations + Index Stability
 All `ImapClient` methods taking `EmailId[]` preserve input order in results.
 `BatchItemResult<T>[]` ops: result[i] ↔ input[i], with success or `{ code, message }` error.

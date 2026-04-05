@@ -18,5 +18,6 @@ export async function handleAddLabels(
   args: { ids: Array<{ uid: number; mailbox: string }>; labelNames: string[] },
   imap: ImapClient,
 ): Promise<AddLabelsBatchResult> {
+  // addLabels already returns BatchToolResult<AddLabelsItemData[]> with status
   return imap.addLabels(args.ids, args.labelNames);
 }

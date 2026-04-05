@@ -176,7 +176,7 @@ export function createMcpServer(
     {
       description: 'Close all connections in the IMAP connection pool immediately. Useful for forcing reconnection after a Proton Bridge restart.',
       inputSchema: drainConnectionsSchema,
-      annotations: READ_ONLY,
+      annotations: DESTRUCTIVE,
     },
     async () => ({
       content: [{ type: 'text', text: toText(await handleDrainConnections(pool)) }],

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { EmailMessage } from '../types/index.js';
+import type { ListToolResult, EmailMessage } from '../types/index.js';
 
 const emailIdSchema = z.object({
   uid:     z.number().int().positive().describe('IMAP UID'),
@@ -15,6 +15,7 @@ export const fetchMessageSchema = {
 export async function handleFetchMessage(
   args: { ids: Array<{ uid: number; mailbox: string }> },
   imap: ImapClient,
-): Promise<EmailMessage[]> {
-  return imap.fetchMessage(args.ids);
+): Promise<ListToolResult<EmailMessage>> {
+  const items = await imap.fetchMessage(args.ids);
+  return { status: 'succeeded' as const, items };
 }

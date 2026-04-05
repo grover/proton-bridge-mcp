@@ -134,33 +134,45 @@ FolderInfo extends MailboxBase  { path, delimiter }
 LabelInfo = MailboxBase
 CreateFolderResult  { path, created }
 
-BatchItemResult<T>  { id: EmailId, data?: T, error?: { code, message } }
+── Status & Wrapper Types ──
+
+ToolStatus          'succeeded' | 'partial' | 'failed'
+ItemStatus          'succeeded' | 'failed'
+
+BatchToolResult<T>  { status: ToolStatus, items: BatchItemResult<T>[] }
+ListToolResult<T>   { status: ToolStatus, items: T[] }
+SingleToolResult<T> { status: ToolStatus, data: T }
+
+batchStatus<T>(items)  utility → ToolStatus from per-item statuses
+
+── Batch Item Types ──
+
+BatchItemResult<T>  { id: EmailId, status: ItemStatus, data?: T, error?: { code, message } }
   MoveResult        { fromMailbox, toMailbox, targetId? }
   FlagResult        { flagsAfter: string[] }
 
-AddLabelsBatchResult  { items: AddLabelsItem[] }
-  AddLabelsItem       { id, data?: AddLabelsItemData[], error? }
-    AddLabelsItemData { labelPath, newId?: EmailId }
+AddLabelsBatchResult  = BatchToolResult<AddLabelsItemData[]>
+  AddLabelsItemData   { labelPath, newId?: EmailId }
 ```
 
 ## Tool Inventory
 
 | Tool | Input | Output | IMAP Op |
 |---|---|---|---|
-| `get_folders` | — | `FolderInfo[]` | LIST * + STATUS (messages, unseen, uidNext) |
-| `get_labels` | — | `LabelInfo[]` | LIST * + STATUS (messages, unseen, uidNext) |
-| `create_folder` | `path` | `CreateFolderResult` | CREATE mailbox |
-| `list_mailbox` | `mailbox`, `limit`, `offset` | `EmailSummary[]` | SELECT + FETCH seq range, reversed |
-| `fetch_summaries` | `ids: EmailId[]` | `EmailSummary[]` | UID FETCH envelope+flags |
-| `fetch_message` | `ids: EmailId[]` | `EmailMessage[]` | UID FETCH source → mailparser |
-| `fetch_attachment` | `id`, `partId` | `AttachmentContent` | UID FETCH source → mailparser attachment[partId-1] |
-| `search_mailbox` | `mailbox`, `query`, `limit`, `offset` | `EmailSummary[]` | SEARCH TEXT + UID FETCH |
-| `move_emails` | `ids`, `targetMailbox` | `MoveBatchResult` | UID MOVE per item |
-| `mark_read` | `ids` | `FlagBatchResult` | UID STORE +FLAGS (\\Seen) |
-| `mark_unread` | `ids` | `FlagBatchResult` | UID STORE -FLAGS (\\Seen) |
-| `verify_connectivity` | — | `{ success, latencyMs? }` | connect + NOOP |
+| `get_folders` | — | `ListToolResult<FolderInfo>` | LIST * + STATUS (messages, unseen, uidNext) |
+| `get_labels` | — | `ListToolResult<LabelInfo>` | LIST * + STATUS (messages, unseen, uidNext) |
+| `create_folder` | `path` | `SingleToolResult<CreateFolderResult>` | CREATE mailbox |
+| `list_mailbox` | `mailbox`, `limit`, `offset` | `ListToolResult<EmailSummary>` | SELECT + FETCH seq range, reversed |
+| `fetch_summaries` | `ids: EmailId[]` | `ListToolResult<EmailSummary>` | UID FETCH envelope+flags |
+| `fetch_message` | `ids: EmailId[]` | `ListToolResult<EmailMessage>` | UID FETCH source → mailparser |
+| `fetch_attachment` | `id`, `partId` | `SingleToolResult<AttachmentContent>` | UID FETCH source → mailparser attachment[partId-1] |
+| `search_mailbox` | `mailbox`, `query`, `limit`, `offset` | `ListToolResult<EmailSummary>` | SEARCH TEXT + UID FETCH |
+| `move_emails` | `ids`, `targetMailbox` | `BatchToolResult<MoveResult>` | UID MOVE per item |
+| `mark_read` | `ids` | `BatchToolResult<FlagResult>` | UID STORE +FLAGS (\\Seen) |
+| `mark_unread` | `ids` | `BatchToolResult<FlagResult>` | UID STORE -FLAGS (\\Seen) |
+| `verify_connectivity` | — | `SingleToolResult<{ latencyMs?, error? }>` | connect + NOOP |
 | `add_labels` | `ids`, `labelNames` | `AddLabelsBatchResult` | UID COPY per item/label |
-| `drain_connections` | — | `{ message }` | pool.drain() |
+| `drain_connections` | — | `SingleToolResult<{ message }>` | pool.drain() |
 
 ## Batch Contract
 

@@ -209,6 +209,19 @@ EDDs are living documents. When refactoring changes the implementation, always p
   4.3. Refactor while maintaining green for all prior green tests
 5. As a **Reviewer**, you review generated code (strict, iterate between 4 and 5 until all findings are resolved)
 
+# Smoke test bug fixing flow
+
+When the **User** reports a bug during smoke testing:
+
+1. **Check EDD coverage** — was this behavior described in the EDD? If not, update the EDD to include it.
+2. **Analyze existing tests** — do current tests miss this? Understand why they don't catch the observed behavior.
+3. As a **QE**, write new unit tests that reproduce the bug (RED — tests must fail against current code).
+4. As a **QE**, verify all new tests fail.
+5. As a **SWE**, fix the implementation until new tests pass (GREEN), without breaking existing tests.
+6. As a **Reviewer**, review the fix (strict — iterate between 5 and 6 until clean).
+7. **User** restarts smoke test to confirm the fix.
+8. On confirmation: commit, push, continue with PR.
+
 
 # Test methodologies
 

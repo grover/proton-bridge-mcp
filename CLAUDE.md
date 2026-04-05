@@ -8,7 +8,7 @@ Consult `README.md` for user facing project details
 
 - Project is a background daemon
 - Good logging in code necessary for diagnostics
-- Every public `ImapClient` method must use `@Audited('operation_name')` — see `ARCHITECTURE.md` "decorators.ts" for mechanics.
+- Every public `ImapClient` method must use `@Audited('operation_name')` — see `docs/impl/auditing.md` for mechanics.
 
 ### Operation modes
 - **STDIO (default):** no flags needed; `src/stdio.ts` connects one `McpServer` to `StdioServerTransport`
@@ -18,22 +18,11 @@ Consult `README.md` for user facing project details
 - `ImapClient` and `ImapConnectionPool` are shared singletons across all modes
 
 
-### Standardized Tool Result Structure
-- All tool responses include a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
-  - **Batch tools:** `BatchToolResult<T>` — `{ status, items: BatchItemResult<T>[] }` with per-item `status: ItemStatus`
-  - **List tools:** `ListToolResult<T>` — `{ status: 'succeeded', items: T[] }` (throw on failure)
-  - **Single tools:** `SingleToolResult<T>` — `{ status, data: T }`
-  - Use `batchStatus(items)` utility to compute top-level status from per-item results.
-
-### Choosing a Result Type
-- **BatchToolResult<T>**: Operations on `EmailId[]` where individual items can fail independently (move, mark, add_labels)
-- **ListToolResult<T>**: Read operations returning collections that either fully succeed or throw (list_mailbox, get_folders, fetch_summaries, search_mailbox)
-- **SingleToolResult<T>**: Operations on a single entity or returning a single result (fetch_attachment, verify_connectivity, drain_connections, create_folder)
+### Tool Result Structure
+See `docs/impl/mcp-tool-interfaces.md` for the result type system (`BatchToolResult`, `ListToolResult`, `SingleToolResult`), `batchStatus()` utility, and selection guidelines.
 
 ### Tool Annotations
-- All tools must declare `annotations` with `readOnlyHint` and `destructiveHint` booleans.
-- Three annotation presets defined in `src/server.ts`: `READ_ONLY`, `MUTATING`, `DESTRUCTIVE`.
-- See `docs/tools/README.md` for per-tool annotation values.
+See `docs/impl/mcp-tool-interfaces.md` for annotation presets (`READ_ONLY`, `MUTATING`, `DESTRUCTIVE`), classification rationale, and `openWorldHint` guidelines. See `docs/tools/README.md` for per-tool annotation values.
 
 ### Tool Categories
 Tools belong to one of four categories (used by `--disabled-tools` and for annotation selection):

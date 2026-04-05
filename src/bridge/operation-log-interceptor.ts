@@ -28,18 +28,25 @@ function buildMoveReversal(
   return { type: 'move_batch', moves };
 }
 
-function buildFlagReversal(type: 'mark_read' | 'mark_unread') {
-  return (_args: unknown[], result: unknown): ReversalSpec => {
+function buildFlagReversal(type: 'mark_read' | 'mark_unread', flag: string) {
+  return (_args: unknown[], result: unknown): ReversalSpec | null => {
     const r = result as BatchToolResult<FlagResult>;
     const ids = r.items
-      .filter(item => item.status === 'succeeded')
+      .filter(item => {
+        if (item.status !== 'succeeded' || !item.data) return false;
+        const hadFlag = item.data.flagsBefore.includes(flag);
+        const hasFlag = item.data.flagsAfter.includes(flag);
+        return hadFlag !== hasFlag; // only include if the flag actually changed
+      })
       .map(item => item.id);
+    if (ids.length === 0) return null;
     return { type, ids };
   };
 }
 
-const buildMarkReadReversal = buildFlagReversal('mark_read');
-const buildMarkUnreadReversal = buildFlagReversal('mark_unread');
+const buildMarkReadReversal = buildFlagReversal('mark_read', '\\Seen');
+const buildMarkUnreadReversal = buildFlagReversal('mark_unread', '\\Seen');
+
 
 // buildCreateFolderReversal and buildAddLabelsReversal removed —
 // not tracked until deleteFolder/deleteEmails land (see TODO.md).

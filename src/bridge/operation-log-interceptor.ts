@@ -72,7 +72,21 @@ function buildCreateLabelReversal(
   return { type: 'create_label', name: r.data.name };
 }
 
-// buildAddLabelsReversal not yet tracked — requires deleteEmails (see TODO.md).
+function buildAddLabelsReversal(
+  _args: unknown[],
+  result: unknown,
+): ReversalSpec | null {
+  const r = result as AddLabelsBatchResult;
+  const entries = r.items
+    .filter(item => item.status === 'succeeded' && item.data)
+    .flatMap(item =>
+      (item.data ?? [])
+        .filter(label => label.applied)
+        .map(label => ({ original: item.id, labelName: label.labelName })),
+    );
+  if (entries.length === 0) return null;
+  return { type: 'add_labels', entries };
+}
 
 function buildRemoveLabelsReversal(
   _args: unknown[],
@@ -145,9 +159,7 @@ export class OperationLogInterceptor {
     return { status: 'succeeded' as const, data };
   }
 
-  // Tracked as noop — reversal requires deleteEmails (separate branch).
-  // buildReversal returns null → @Tracked records { type: 'noop' }.
-  @Tracked('add_labels', () => null)
+  @Tracked('add_labels', buildAddLabelsReversal)
   async addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult> {
     return this.#imap.addLabels(ids, labelNames);
   }
@@ -245,9 +257,18 @@ export class OperationLogInterceptor {
         await this.#imap.deleteLabel(spec.name);
         return undefined;
 
-      case 'add_labels':
-        // Reversal requires deleteEmails — not yet implemented.
-        throw new Error(`Reversal of ${spec.type} not yet implemented`);
+      case 'add_labels': {
+        const byLabel = new Map<string, EmailId[]>();
+        for (const entry of spec.entries) {
+          const ids = byLabel.get(entry.labelName) ?? [];
+          ids.push(entry.original);
+          byLabel.set(entry.labelName, ids);
+        }
+        for (const [labelName, ids] of byLabel) {
+          await this.#imap.removeLabels(ids, [labelName]);
+        }
+        return undefined;
+      }
 
       case 'remove_labels': {
         const byLabel = new Map<string, EmailId[]>();
@@ -285,6 +306,7 @@ export class OperationLogInterceptor {
             if (newTo) move.to = newTo;
           }
           break;
+        case 'add_labels':
         case 'remove_labels':
           for (const entry of spec.entries) {
             const newOriginal = uidMap.get(formatEmailId(entry.original));

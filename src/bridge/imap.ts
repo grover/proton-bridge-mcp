@@ -418,12 +418,8 @@ export class ImapClient {
 
             for (const labelPath of labelPaths) {
               try {
-                const copied = await conn.messageCopy(String(id.uid), labelPath, { uid: true });
-                const targetUid = copied !== false ? copied.uidMap?.get(id.uid) : undefined;
-                labelResults.push({
-                  labelPath,
-                  ...(targetUid ? { newId: { uid: targetUid, mailbox: labelPath } } : {}),
-                });
+                await conn.messageCopy(String(id.uid), labelPath, { uid: true });
+                labelResults.push({ labelName: labelPath.slice('Labels/'.length), applied: true });
               } catch (err) {
                 itemError = { code: 'COPY_FAILED', message: err instanceof Error ? err.message : String(err) };
                 break;

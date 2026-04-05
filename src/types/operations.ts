@@ -76,9 +76,8 @@ export interface FlagResult {
 
 /** Result of a single label application to one email */
 export interface AddLabelsItemData {
-  labelPath: string;
-  /** New UID in the label folder. May be undefined if the server doesn't report COPYUID. */
-  newId?:    EmailId;
+  labelName: string;
+  applied:   boolean;
 }
 
 /** Batch result for add_labels — unified with BatchItemResult */
@@ -135,7 +134,7 @@ export type ReversalSpec =
   | { type: 'mark_unread';   ids:     EmailId[] }
   | { type: 'create_folder'; path:    string }
   | { type: 'create_label';  name:    string }
-  | { type: 'add_labels';    entries: Array<{ original: EmailId; labelPath: string; copy: EmailId }> }
+  | { type: 'add_labels';    entries: Array<{ original: EmailId; labelName: string }> }
   | { type: 'remove_labels'; entries: Array<{ original: EmailId; labelPath: string }> };
 
 // ── Operation record ──────────────────────────────────────────────────────────

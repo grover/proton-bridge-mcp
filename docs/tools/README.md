@@ -474,18 +474,13 @@ Add one or more Proton Mail labels to a batch of emails. Each email is copied in
 
 ```jsonc
 {
+  "operationId": 3,
   "items": [
     {
       "id": "INBOX:42",
       "data": [
-        {
-          "labelPath": "Labels/Important",
-          "newId": "Labels/Important:7"
-        },
-        {
-          "labelPath": "Labels/Work",
-          "newId": "Labels/Work:12"
-        }
+        { "labelName": "Important", "applied": true },
+        { "labelName": "Work", "applied": true }
       ]
     },
     {
@@ -496,7 +491,7 @@ Add one or more Proton Mail labels to a batch of emails. Each email is copied in
 }
 ```
 
-> **Note:** If a requested label does not exist as an IMAP folder (e.g. `Labels/Foo`), the corresponding entry in `data` will have `labelPath` but no `newId`. If **all** requested labels are missing, the item reports a `LABEL_NOT_FOUND` error instead.
+> **Note:** `applied` is `true` when the label was successfully added. If a label folder does not exist, the item reports a `COPY_FAILED` error.
 
 ---
 

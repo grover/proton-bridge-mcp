@@ -408,7 +408,7 @@ describe('OperationLogInterceptor', () => {
   });
 
   describe('addLabels', () => {
-    it('delegates to imap.addLabels and returns operationId (noop — reversal not yet implemented)', async () => {
+    it('delegates to imap.addLabels and returns operationId', async () => {
       const ids = [eid(1)];
       const labels = ['Important'];
       const batchResult: AddLabelsBatchResult = {
@@ -417,7 +417,7 @@ describe('OperationLogInterceptor', () => {
           {
             id: eid(1),
             status: 'succeeded',
-            data: [{ labelPath: 'Labels/Important', newId: eid(50, 'Labels/Important') }],
+            data: [{ labelName: 'Important', applied: true }],
           },
         ],
       };
@@ -428,6 +428,50 @@ describe('OperationLogInterceptor', () => {
       expect(imap.addLabels).toHaveBeenCalledWith(ids, labels);
       expect(result).toHaveProperty('operationId');
       expect(log.size).toBe(1);
+    });
+
+    it('records add_labels reversal with entries when applied: true', async () => {
+      const batchResult: AddLabelsBatchResult = {
+        status: 'succeeded',
+        items: [
+          {
+            id: eid(1),
+            status: 'succeeded',
+            data: [{ labelName: 'Work', applied: true }, { labelName: 'Urgent', applied: true }],
+          },
+        ],
+      };
+      mock(imap.addLabels).mockResolvedValue(batchResult);
+
+      await interceptor.addLabels([eid(1)], ['Work', 'Urgent']);
+
+      const records = log.getFrom(1);
+      expect(records[0]!.reversal).toEqual({
+        type: 'add_labels',
+        entries: [
+          { original: eid(1), labelName: 'Work' },
+          { original: eid(1), labelName: 'Urgent' },
+        ],
+      });
+    });
+
+    it('records noop when no labels were applied (all failed)', async () => {
+      const batchResult: AddLabelsBatchResult = {
+        status: 'failed',
+        items: [
+          {
+            id: eid(1),
+            status: 'failed',
+            error: { code: 'COPY_FAILED', message: 'error' },
+          },
+        ],
+      };
+      mock(imap.addLabels).mockResolvedValue(batchResult);
+
+      await interceptor.addLabels([eid(1)], ['Work']);
+
+      const records = log.getFrom(1);
+      expect(records[0]!.reversal).toEqual({ type: 'noop' });
     });
   });
 
@@ -749,6 +793,55 @@ describe('OperationLogInterceptor', () => {
       const revertResult = await interceptor.revertOperations(operationId);
 
       expect(imap.deleteLabel).not.toHaveBeenCalled();
+      expect(revertResult.stepsSucceeded).toBe(1);
+    });
+
+    it('reverses add_labels — calls imap.removeLabels to undo labeling', async () => {
+      const addResult: AddLabelsBatchResult = {
+        status: 'succeeded',
+        items: [
+          {
+            id: eid(1),
+            status: 'succeeded',
+            data: [{ labelName: 'Work', applied: true }],
+          },
+        ],
+      };
+      mock(imap.addLabels).mockResolvedValue(addResult);
+
+      const result = await interceptor.addLabels([eid(1)], ['Work']);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      mock(imap.removeLabels).mockReset().mockResolvedValue({
+        status: 'succeeded',
+        items: [{ id: eid(1), status: 'succeeded', data: [{ labelName: 'Work', removed: true }] }],
+      });
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(imap.removeLabels).toHaveBeenCalledWith([eid(1)], ['Work']);
+      expect(revertResult.stepsSucceeded).toBe(1);
+    });
+
+    it('skips reversal for add_labels noop (no labels applied)', async () => {
+      const addResult: AddLabelsBatchResult = {
+        status: 'failed',
+        items: [
+          {
+            id: eid(1),
+            status: 'failed',
+            error: { code: 'COPY_FAILED', message: 'error' },
+          },
+        ],
+      };
+      mock(imap.addLabels).mockResolvedValue(addResult);
+
+      const result = await interceptor.addLabels([eid(1)], ['Work']);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(imap.removeLabels).not.toHaveBeenCalled();
       expect(revertResult.stepsSucceeded).toBe(1);
     });
 

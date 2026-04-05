@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `add_labels` response no longer exposes internal `labelPath` and `newId` — returns `{ labelName, applied }` matching `remove_labels`'s clean response shape (#54)
+- `add_labels` reversal now works — calls `removeLabels` to undo labeling (previously tracked as noop). Symmetric with `remove_labels` reversal calling `addLabels`. (#54)
 - `revert_operations` now rewrites stale UIDs during chain reverts that include `move_emails` — flag reversals after a move reversal target the correct emails (#45)
 - `create_folder` now returns `{ created: false }` when the folder already exists on Proton Bridge, instead of throwing "Command failed" (#44). Uses LIST fallback when the server sends a bare IMAP NO without RFC 5530 `ALREADYEXISTS` response code.
 

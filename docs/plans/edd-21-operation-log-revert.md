@@ -279,6 +279,7 @@ When `buildReversal` returns `null` (all no-ops, or tools without real reversal 
 | 11 | `create_folder` | `operationId` present (noop reversal) |
 | 12 | `add_labels` | `operationId` present (noop reversal) |
 | 13 | `create_folder` existing path | **Bug:** throws "Command failed" instead of `created: false` ([#44](https://github.com/grover/proton-bridge-mcp/issues/44)) |
+| 14 | Cascading moves: `mark_read` → `move_emails` A→B → `move_emails` B→C → revert from mark_read ID | All steps succeed (`stepsSucceeded: 3`); email back in original mailbox AND marked unread (added in [#45](https://github.com/grover/proton-bridge-mcp/issues/45)) |
 
 ## Implementation Order
 

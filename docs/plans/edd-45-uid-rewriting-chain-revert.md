@@ -177,8 +177,9 @@ New `describe('UID rewriting during chain revert')` block:
 
 ## Smoke Test Scenarios
 
-Smoke test #9 from [EDD-21](edd-21-operation-log-revert.md) — currently marked as known limitation (#45):
+From [EDD-21](edd-21-operation-log-revert.md):
 
 | # | Scenario | Expected |
 |---|----------|----------|
 | 9 | Chain: `mark_read` → `move_emails` → revert from mark_read ID | All steps succeed; email back in original mailbox AND marked unread |
+| 14 | Cascading moves: `mark_read` → `move_emails` A→B → `move_emails` B→C → revert from mark_read ID | All steps succeed (`stepsSucceeded: 3`); email back in original mailbox AND marked unread |

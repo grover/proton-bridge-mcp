@@ -82,15 +82,17 @@ export class OperationLogInterceptor {
     return { status: batchStatus(items), items };
   }
 
-  // Not tracked: reversal requires deleteFolder which is on a separate branch.
-  // TODO: re-add @Tracked('create_folder', buildCreateFolderReversal) when deleteFolder lands.
+  // Tracked as noop — reversal requires deleteFolder (separate branch).
+  // buildReversal returns null → @Tracked records { type: 'noop' }.
+  @Tracked('create_folder', () => null)
   async createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>> {
     const data = await this.#imap.createFolder(path);
     return { status: 'succeeded' as const, data };
   }
 
-  // Not tracked: reversal requires deleteEmails which is on a separate branch.
-  // TODO: re-add @Tracked('add_labels', buildAddLabelsReversal) when deleteEmails lands.
+  // Tracked as noop — reversal requires deleteEmails (separate branch).
+  // buildReversal returns null → @Tracked records { type: 'noop' }.
+  @Tracked('add_labels', () => null)
   async addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult> {
     return this.#imap.addLabels(ids, labelNames);
   }
@@ -130,6 +132,9 @@ export class OperationLogInterceptor {
 
   async #executeReversal(spec: ReversalSpec): Promise<void> {
     switch (spec.type) {
+      case 'noop':
+        break;
+
       case 'move_batch': {
         // Group by target mailbox to minimize IMAP lock acquisitions
         const byMailbox = new Map<string, EmailId[]>();

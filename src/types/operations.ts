@@ -96,6 +96,7 @@ export type FlagBatchResult = BatchItemResult<FlagResult>[];
 // ── Reversal specifications ───────────────────────────────────────────────────
 
 export type ReversalSpec =
+  | { type: 'noop' }
   | { type: 'move_batch';    moves:   Array<{ from: EmailId; to: EmailId }> }
   | { type: 'mark_read';     ids:     EmailId[] }
   | { type: 'mark_unread';   ids:     EmailId[] }

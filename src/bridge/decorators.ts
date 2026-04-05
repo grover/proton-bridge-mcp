@@ -44,16 +44,13 @@ export function Tracked(toolName: string, buildReversal: BuildReversalFn) {
     const original = descriptor.value as (this: { log: OperationLog }, ...args: unknown[]) => Promise<unknown>;
     descriptor.value = async function (this: { log: OperationLog }, ...args: unknown[]) {
       const result = await original.apply(this, args);
-      const reversal = buildReversal(args, result);
-      if (reversal !== null) {
-        const operationId = this.log.push({
-          tool: toolName,
-          reversal,
-          timestamp: new Date().toISOString(),
-        });
-        return { ...(result as object), operationId };
-      }
-      return result;
+      const reversal = buildReversal(args, result) ?? { type: 'noop' as const };
+      const operationId = this.log.push({
+        tool: toolName,
+        reversal,
+        timestamp: new Date().toISOString(),
+      });
+      return { ...(result as object), operationId };
     };
     return descriptor;
   };

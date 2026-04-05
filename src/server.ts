@@ -5,6 +5,7 @@ import { isEmailId, formatEmailId } from './types/email.js';
 import {
   getFoldersSchema,             handleGetFolders,
   createFolderSchema,           handleCreateFolder,
+  createLabelSchema,            handleCreateLabel,
   deleteFolderSchema,           handleDeleteFolder,
   listMailboxSchema,            handleListMailbox,
   fetchSummariesSchema,         handleFetchSummaries,
@@ -68,6 +69,18 @@ export function createMcpServer(
     },
     async (args) => ({
       content: [{ type: 'text', text: toText(await handleCreateFolder(args, mutOps)) }],
+    }),
+  );
+
+  server.registerTool(
+    'create_label',
+    {
+      description: "Create a new Proton Mail label. The name must be plain text without '/' characters. Returns the full IMAP path (Labels/<name>) and whether it was newly created or already existed.",
+      inputSchema: createLabelSchema,
+      annotations: MUTATING,
+    },
+    async (args) => ({
+      content: [{ type: 'text', text: toText(await handleCreateLabel(args, mutOps)) }],
     }),
   );
 

@@ -1,6 +1,7 @@
 import type { EmailId, EmailSummary, EmailMessage, AttachmentContent, FolderInfo, LabelInfo } from './email.js';
 import type {
   CreateFolderResult,
+  CreateLabelResult,
   DeleteFolderResult,
   AddLabelsBatchResult,
   BatchToolResult,
@@ -27,6 +28,7 @@ export interface MutatingMailOps {
   markRead(ids: EmailId[]): Promise<BatchToolResult<FlagResult>>;
   markUnread(ids: EmailId[]): Promise<BatchToolResult<FlagResult>>;
   createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>>;
+  createLabel(name: string): Promise<SingleToolResult<CreateLabelResult>>;
   deleteFolder(path: string): Promise<SingleToolResult<DeleteFolderResult>>;
   addLabels(ids: EmailId[], labelNames: string[]): Promise<AddLabelsBatchResult>;
   revertOperations(operationId: number): Promise<RevertResult>;

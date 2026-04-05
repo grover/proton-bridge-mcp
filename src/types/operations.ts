@@ -93,6 +93,9 @@ export interface CreateMailboxResult {
 /** Result of a folder creation */
 export type CreateFolderResult = CreateMailboxResult;
 
+/** Result of a label creation */
+export type CreateLabelResult = CreateMailboxResult;
+
 /** Result of a folder deletion */
 export interface DeleteFolderResult {
   path:    string;

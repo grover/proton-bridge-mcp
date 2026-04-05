@@ -9,6 +9,7 @@ import type {
   SingleToolResult,
   CreateMailboxResult,
   CreateFolderResult,
+  CreateLabelResult,
   DeleteFolderResult,
   AddLabelsBatchResult,
   ReversalSpec,
@@ -97,6 +98,13 @@ export class OperationLogInterceptor {
   async createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>> {
     const data = await this.#imap.createFolder(path);
     return { status: 'succeeded' as const, data };
+  }
+
+  // Tracked as noop — reversal requires deleteLabel (existing GitHub issue).
+  // buildReversal returns null → @Tracked records { type: 'noop' }.
+  @Tracked('create_label', () => null)
+  async createLabel(_name: string): Promise<SingleToolResult<CreateLabelResult>> {
+    throw new Error('Not implemented');
   }
 
   @IrreversibleWhen((result) => (result as SingleToolResult<DeleteFolderResult>).data.deleted)

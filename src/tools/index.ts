@@ -2,6 +2,7 @@ export * from './get-folders.js';
 export * from './create-folder.js';
 export * from './create-label.js';
 export * from './delete-folder.js';
+export * from './delete-label.js';
 export * from './list-mailbox.js';
 export * from './fetch-summaries.js';
 export * from './fetch-message.js';

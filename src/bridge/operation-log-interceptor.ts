@@ -11,6 +11,7 @@ import type {
   CreateFolderResult,
   CreateLabelResult,
   DeleteFolderResult,
+  DeleteLabelResult,
   AddLabelsBatchResult,
   ReversalSpec,
   RevertResult,
@@ -114,6 +115,11 @@ export class OperationLogInterceptor {
     return { status: 'succeeded' as const, data };
   }
 
+  @IrreversibleWhen((result) => (result as SingleToolResult<DeleteLabelResult>).data.deleted)
+  async deleteLabel(_name: string): Promise<SingleToolResult<DeleteLabelResult>> {
+    throw new Error('Not implemented');
+  }
+
   // Tracked as noop — reversal requires deleteEmails (separate branch).
   // buildReversal returns null → @Tracked records { type: 'noop' }.
   @Tracked('add_labels', () => null)
@@ -203,6 +209,10 @@ export class OperationLogInterceptor {
 
       case 'create_folder':
         await this.#imap.deleteFolder(spec.path);
+        return undefined;
+
+      case 'create_label':
+        await this.#imap.deleteLabel(spec.name);
         return undefined;
 
       case 'add_labels':

@@ -315,7 +315,7 @@ export class ImapClient {
 
             // Skip if already in the target state
             if ((add && hasFlag) || (!add && !hasFlag)) {
-              results[index] = { id, status: 'succeeded', data: { flagsBefore, flagsAfter: flagsBefore } };
+              results[index] = { id, status: 'succeeded', data: { flagsBefore, flagsAfter: [...flagsBefore] } };
               continue;
             }
 

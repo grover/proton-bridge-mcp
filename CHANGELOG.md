@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `create_label` MCP tool — create flat Proton Mail labels under `Labels/`. Validates no `/` in name, reuses shared `#createMailbox` helper for IMAP logic. Tracked as noop for reversal until `deleteLabel` is implemented (#17)
+- `CreateMailboxResult` base type — shared by `create_folder` and `create_label` via type aliases
 - `delete_folder` MCP tool — delete user-created mail folders under `Folders/`. Protected and special-use folders are rejected. Clears the operation log on success (`@Irreversible`), so no prior operations can be reverted afterward. Annotated as DESTRUCTIVE. (#15)
 - Jest test infrastructure (`jest.config.ts`, `tsconfig.test.json`, ESLint test config)
 - `formatEmailId`, `parseEmailId`, `isEmailId` utilities and `emailIdStringSchema` Zod schema in `src/types/email.ts`

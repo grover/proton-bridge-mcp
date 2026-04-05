@@ -86,6 +86,7 @@ export function loadConfig(argv: string[]): AppConfig {
     .option('--audit-log-path <path>',        `Audit log file path (default: ${DEFAULT_AUDIT_LOG})`)
     .option('--log-path <path>',              'Application log file path (stderr if omitted)')
     .option('--log-level <level>',            'Log level: trace|debug|info|warn|error')
+    .option('--operation-log-size <n>',        'Max operations in revert log (default: 100)')
     .option('--verify',                       'Verify IMAP connectivity then exit')
     .allowUnknownOption(false)
     .parse(argv);
@@ -110,6 +111,7 @@ export function loadConfig(argv: string[]): AppConfig {
     auditLogPath?:        string;
     logPath?:             string;
     logLevel?:            string;
+    operationLogSize?:    string;
     verify?:              boolean;
   }>();
 
@@ -154,6 +156,9 @@ export function loadConfig(argv: string[]): AppConfig {
       ...(logPath !== undefined ? { logPath } : {}),
       auditLogPath: optionalValue(opts.auditLogPath, 'PROTONMAIL_AUDIT_LOG_PATH') ?? DEFAULT_AUDIT_LOG,
       logLevel:     opts.logLevel ?? process.env['PROTONMAIL_LOG_LEVEL'] ?? 'info',
+    },
+    operationLog: {
+      maxSize: intValue(opts.operationLogSize, 'PROTONMAIL_OPERATION_LOG_SIZE', 100),
     },
     verify: opts.verify ?? false,
   };

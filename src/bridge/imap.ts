@@ -476,6 +476,12 @@ export class ImapClient {
       }
 
       // Phase 2: Remove from each label folder
+      const pushResult = (i: number, labelPath: string, removed: boolean) => {
+        const existing = items[i]!.data ?? [];
+        existing.push({ labelPath, removed });
+        items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+      };
+
       for (const labelPath of labelPaths) {
         let lock;
         try {
@@ -494,9 +500,7 @@ export class ImapClient {
           for (let i = 0; i < ids.length; i++) {
             const msgId = messageIds.get(i);
             if (!msgId) {
-              const existing = items[i]!.data ?? [];
-              existing.push({ labelPath, removed: false });
-              items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+              pushResult(i, labelPath, false);
               continue;
             }
 
@@ -507,16 +511,12 @@ export class ImapClient {
               );
 
               if (!uids || uids.length === 0) {
-                const existing = items[i]!.data ?? [];
-                existing.push({ labelPath, removed: false });
-                items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+                pushResult(i, labelPath, false);
                 continue;
               }
 
               await conn.messageDelete(String(uids[0]), { uid: true });
-              const existing = items[i]!.data ?? [];
-              existing.push({ labelPath, removed: true });
-              items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+              pushResult(i, labelPath, true);
             } catch (err) {
               items[i] = {
                 id: ids[i]!,

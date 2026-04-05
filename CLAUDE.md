@@ -349,3 +349,4 @@ The MCP SDK supports Zod `.transform()` in `inputSchema`. The JSON Schema conver
 - **Tool schemas, annotations, examples:** `docs/tools/README.md`
 - **Config precedence & all settings:** `README.md` "Configuration Reference"
 - **Operation log, @Tracked, revert_operations:** `docs/impl/operation-log-revert.md`
+- **Label handling, devirtualization, path leakage rules:** `docs/impl/label-handling.md`

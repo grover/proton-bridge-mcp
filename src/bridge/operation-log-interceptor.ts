@@ -142,7 +142,31 @@ export class OperationLogInterceptor {
         return undefined;
 
       case 'move_batch': {
-        throw new Error('Not implemented');
+        const uidMap = new Map<string, EmailId>();
+        const byMailbox = new Map<string, EmailId[]>();
+        const fromLookup = new Map<string, EmailId>();
+
+        for (const move of spec.moves) {
+          const target = move.to.mailbox;
+          const ids = byMailbox.get(target) ?? [];
+          ids.push(move.from);
+          byMailbox.set(target, ids);
+          fromLookup.set(formatEmailId(move.from), move.to);
+        }
+
+        for (const [mailbox, ids] of byMailbox) {
+          const results = await this.#imap.moveEmails(ids, mailbox);
+          for (const item of results) {
+            if (item.status === 'succeeded' && item.data?.targetId) {
+              const originalId = fromLookup.get(formatEmailId(item.id));
+              if (originalId) {
+                uidMap.set(formatEmailId(originalId), item.data.targetId);
+              }
+            }
+          }
+        }
+
+        return uidMap;
       }
 
       case 'mark_read':
@@ -166,8 +190,22 @@ export class OperationLogInterceptor {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  #rewriteSpecs(_specs: ReversalSpec[], _uidMap: Map<string, EmailId>): void {
-    throw new Error('Not implemented');
+  #rewriteSpecs(specs: ReversalSpec[], uidMap: Map<string, EmailId>): void {
+    for (const spec of specs) {
+      switch (spec.type) {
+        case 'mark_read':
+        case 'mark_unread':
+          spec.ids = spec.ids.map(id => uidMap.get(formatEmailId(id)) ?? id);
+          break;
+        case 'move_batch':
+          for (const move of spec.moves) {
+            const newFrom = uidMap.get(formatEmailId(move.from));
+            if (newFrom) move.from = newFrom;
+            const newTo = uidMap.get(formatEmailId(move.to));
+            if (newTo) move.to = newTo;
+          }
+          break;
+      }
+    }
   }
 }

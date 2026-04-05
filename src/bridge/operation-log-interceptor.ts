@@ -144,11 +144,20 @@ export class OperationLogInterceptor {
 
   async #executeReversal(spec: ReversalSpec): Promise<void> {
     switch (spec.type) {
-      case 'move_batch':
+      case 'move_batch': {
+        // Group by target mailbox to minimize IMAP lock acquisitions
+        const byMailbox = new Map<string, EmailId[]>();
         for (const move of spec.moves) {
-          await this.#imap.moveEmails([move.from], move.to.mailbox);
+          const target = move.to.mailbox;
+          const ids = byMailbox.get(target) ?? [];
+          ids.push(move.from);
+          byMailbox.set(target, ids);
+        }
+        for (const [mailbox, ids] of byMailbox) {
+          await this.#imap.moveEmails(ids, mailbox);
         }
         break;
+      }
 
       case 'mark_read':
         await this.#imap.setFlag(spec.ids, '\\Seen', false);

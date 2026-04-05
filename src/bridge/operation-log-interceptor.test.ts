@@ -21,6 +21,7 @@ function createMockImap() {
     createLabel: jest.fn(),
     addLabels: jest.fn(),
     deleteFolder: jest.fn(),
+    deleteLabel: jest.fn(),
     deleteEmails: jest.fn(),
   } as unknown as ImapClient;
 }
@@ -288,10 +289,19 @@ describe('OperationLogInterceptor', () => {
       expect(log.size).toBe(1);
     });
 
-    it('records noop reversal (deleteLabel not yet implemented)', async () => {
+    it('records create_label reversal when label was newly created', async () => {
       mock(imap.createLabel).mockResolvedValue({ name: 'Important', created: true });
 
       await interceptor.createLabel('Important');
+
+      const records = log.getFrom(1);
+      expect(records[0]!.reversal).toEqual({ type: 'create_label', name: 'Important' });
+    });
+
+    it('records noop reversal when label already existed', async () => {
+      mock(imap.createLabel).mockResolvedValue({ name: 'Existing', created: false });
+
+      await interceptor.createLabel('Existing');
 
       const records = log.getFrom(1);
       expect(records[0]!.reversal).toEqual({ type: 'noop' });
@@ -345,6 +355,52 @@ describe('OperationLogInterceptor', () => {
       mock(imap.deleteFolder).mockRejectedValue(new Error('FORBIDDEN'));
 
       await expect(interceptor.deleteFolder('Folders/Special')).rejects.toThrow('FORBIDDEN');
+      expect(log.size).toBe(1);
+    });
+  });
+
+  describe('deleteLabel', () => {
+    it('delegates to imap.deleteLabel and returns SingleToolResult without operationId', async () => {
+      mock(imap.deleteLabel).mockResolvedValue({ name: 'Work', deleted: true });
+
+      const result = await interceptor.deleteLabel('Work');
+
+      expect(imap.deleteLabel).toHaveBeenCalledWith('Work');
+      expect(result).toEqual({ status: 'succeeded', data: { name: 'Work', deleted: true } });
+      expect(result).not.toHaveProperty('operationId');
+    });
+
+    it('clears the operation log when deleted is true', async () => {
+      mock(imap.createLabel).mockResolvedValue({ name: 'A', created: true });
+      await interceptor.createLabel('A');
+      expect(log.size).toBe(1);
+
+      mock(imap.deleteLabel).mockResolvedValue({ name: 'A', deleted: true });
+      await interceptor.deleteLabel('A');
+
+      expect(log.size).toBe(0);
+    });
+
+    it('does not clear the log when deleted is false (label did not exist)', async () => {
+      mock(imap.createLabel).mockResolvedValue({ name: 'A', created: true });
+      await interceptor.createLabel('A');
+      expect(log.size).toBe(1);
+
+      mock(imap.deleteLabel).mockResolvedValue({ name: 'Missing', deleted: false });
+      const result = await interceptor.deleteLabel('Missing');
+
+      expect(result).toEqual({ status: 'succeeded', data: { name: 'Missing', deleted: false } });
+      expect(log.size).toBe(1);
+    });
+
+    it('does not clear the log when imap.deleteLabel throws', async () => {
+      mock(imap.createLabel).mockResolvedValue({ name: 'A', created: true });
+      await interceptor.createLabel('A');
+      expect(log.size).toBe(1);
+
+      mock(imap.deleteLabel).mockRejectedValue(new Error('FORBIDDEN'));
+
+      await expect(interceptor.deleteLabel('Special')).rejects.toThrow('FORBIDDEN');
       expect(log.size).toBe(1);
     });
   });
@@ -579,6 +635,32 @@ describe('OperationLogInterceptor', () => {
       const revertResult = await interceptor.revertOperations(operationId);
 
       expect(imap.deleteFolder).not.toHaveBeenCalled();
+      expect(revertResult.stepsSucceeded).toBe(1);
+    });
+
+    it('reverses create_label — calls imap.deleteLabel with the label name', async () => {
+      mock(imap.createLabel).mockResolvedValue({ name: 'NewLabel', created: true });
+
+      const result = await interceptor.createLabel('NewLabel');
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      mock(imap.deleteLabel).mockReset().mockResolvedValue({ name: 'NewLabel', deleted: true });
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(imap.deleteLabel).toHaveBeenCalledWith('NewLabel');
+      expect(revertResult.stepsSucceeded).toBe(1);
+    });
+
+    it('skips reversal for create_label that returned created: false (noop)', async () => {
+      mock(imap.createLabel).mockResolvedValue({ name: 'Existing', created: false });
+
+      const result = await interceptor.createLabel('Existing');
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(imap.deleteLabel).not.toHaveBeenCalled();
       expect(revertResult.stepsSucceeded).toBe(1);
     });
 

@@ -49,8 +49,16 @@ const buildMarkReadReversal = buildFlagReversal('mark_read', '\\Seen');
 const buildMarkUnreadReversal = buildFlagReversal('mark_unread', '\\Seen');
 
 
-// buildCreateFolderReversal and buildAddLabelsReversal removed —
-// not tracked until deleteFolder/deleteEmails land (see TODO.md).
+function buildCreateFolderReversal(
+  _args: unknown[],
+  result: unknown,
+): ReversalSpec | null {
+  const r = result as SingleToolResult<CreateFolderResult>;
+  if (!r.data.created) return null; // folder already existed — don't delete on revert
+  return { type: 'create_folder', path: r.data.path };
+}
+
+// buildAddLabelsReversal not yet tracked — requires deleteEmails (see TODO.md).
 
 // ── Interceptor ──────────────────────────────────────────────────────────────
 
@@ -83,9 +91,7 @@ export class OperationLogInterceptor {
     return { status: batchStatus(items), items };
   }
 
-  // Tracked as noop — reversal requires deleteFolder (separate branch).
-  // buildReversal returns null → @Tracked records { type: 'noop' }.
-  @Tracked('create_folder', () => null)
+  @Tracked('create_folder', buildCreateFolderReversal)
   async createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>> {
     const data = await this.#imap.createFolder(path);
     return { status: 'succeeded' as const, data };
@@ -185,9 +191,11 @@ export class OperationLogInterceptor {
         return undefined;
 
       case 'create_folder':
+        await this.#imap.deleteFolder(spec.path);
+        return undefined;
+
       case 'add_labels':
-        // These reversal types are stored in ReversalSpec but not yet executable.
-        // They will be implemented when deleteFolder/deleteEmails land.
+        // Reversal requires deleteEmails — not yet implemented.
         throw new Error(`Reversal of ${spec.type} not yet implemented`);
 
       default: {

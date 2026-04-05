@@ -245,7 +245,7 @@ describe('OperationLogInterceptor', () => {
   });
 
   describe('createFolder', () => {
-    it('delegates to imap.createFolder and returns operationId (noop — reversal not yet implemented)', async () => {
+    it('delegates to imap.createFolder and returns operationId', async () => {
       mock(imap.createFolder).mockResolvedValue({ path: 'NewFolder', created: true });
 
       const result = await interceptor.createFolder('NewFolder');
@@ -253,6 +253,24 @@ describe('OperationLogInterceptor', () => {
       expect(imap.createFolder).toHaveBeenCalledWith('NewFolder');
       expect(result).toHaveProperty('operationId');
       expect(log.size).toBe(1);
+    });
+
+    it('records create_folder reversal when folder was newly created', async () => {
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/New', created: true });
+
+      await interceptor.createFolder('Folders/New');
+
+      const records = log.getFrom(1);
+      expect(records[0]!.reversal).toEqual({ type: 'create_folder', path: 'Folders/New' });
+    });
+
+    it('records noop reversal when folder already existed', async () => {
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/Existing', created: false });
+
+      await interceptor.createFolder('Folders/Existing');
+
+      const records = log.getFrom(1);
+      expect(records[0]!.reversal).toEqual({ type: 'noop' });
     });
   });
 
@@ -499,6 +517,32 @@ describe('OperationLogInterceptor', () => {
       expect(revertResult.stepsTotal).toBe(2);
       expect(revertResult.stepsSucceeded).toBe(1);
       expect(revertResult.stepsFailed).toBe(1);
+    });
+
+    it('reverses create_folder — calls imap.deleteFolder with the created path', async () => {
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/New', created: true });
+
+      const result = await interceptor.createFolder('Folders/New');
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      mock(imap.deleteFolder).mockReset().mockResolvedValue({ path: 'Folders/New' });
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(imap.deleteFolder).toHaveBeenCalledWith('Folders/New');
+      expect(revertResult.stepsSucceeded).toBe(1);
+    });
+
+    it('skips reversal for create_folder that returned created: false (noop)', async () => {
+      mock(imap.createFolder).mockResolvedValue({ path: 'Folders/Existing', created: false });
+
+      const result = await interceptor.createFolder('Folders/Existing');
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+
+      const revertResult = await interceptor.revertOperations(operationId);
+
+      expect(imap.deleteFolder).not.toHaveBeenCalled();
+      expect(revertResult.stepsSucceeded).toBe(1);
     });
 
     it('revert calls imap directly — no new log entries created during revert', async () => {

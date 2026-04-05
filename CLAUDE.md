@@ -45,7 +45,6 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 - **Smoke test failures:** Capture in GitHub issue acceptance criteria; repeat all prior failures when re-testing
 - **Numbered workflows:** Are enforceable and cannot skip
 - **Auto-update rule:** After each major code changes, new patterns, or learnings, update `CLAUDE.md`, `ARCHITECTURE.md`, or other documentation file.
-- **PRD commits:** When committing a PRD, always update `docs/ROADMAP.md` in the same commit.
 - **App logger** (`src/logger.ts`): pino → stderr (default) or `PROTONMAIL_LOG_PATH`
 - **Audit logger** (`src/bridge/audit.ts`): JSONL → `PROTONMAIL_AUDIT_LOG_PATH` (file only, **never stderr**)
 - stderr is reserved for operational/MCP/Fastify output
@@ -136,10 +135,47 @@ Assume another agent is working in the same repository at all times.
 6. **Don't rewrite history on shared branches without fetching first** — another agent may have pushed since your last fetch.
 7. **No destructive git commands** — never use `git checkout -- .`, `git reset --hard`, `git clean -fd`, or `git push --force`. The user may have in-progress edits. Use `git stash`, `git rebase`, or `git revert` instead.
 
-# Document naming in `docs/plans/`
+# Documents in `docs/plans/`
 
-- **PRDs:** `prd-{milestone}-{feature}.md` — product requirement documents scoped to a milestone (e.g. `prd-m4-disabled-tools.md`)
-- **EDDs:** `edd-{issue#}-{title}.md` — engineering design documents tied to a GitHub issue (e.g. `edd-35-email-id-refactor.md`)
+## PRD — Product Requirements Document
+
+**File:** `prd-{milestone}-{feature}.md` — scoped to a milestone (e.g. `prd-m4-disabled-tools.md`)
+
+A PRD defines **what** to build and **why**. It is the single source of truth for a milestone feature set. When committing a PRD, always update `docs/ROADMAP.md` in the same commit.
+
+### Required sections
+
+1. **Context** — Why this feature is needed. What problem it solves. What prompted it.
+2. **Design Decisions** — Table of key architectural choices made upfront (Topic | Decision). These drive all downstream implementation.
+3. **Feature Specification** — Per-feature subsections, each with:
+   - Goal (1–2 sentences)
+   - Tool specification: name, description, parameters, return type, error conditions
+   - Configuration: CLI flags, env vars, defaults (table format)
+   - Examples (bash commands, JSON config)
+4. **Corner Cases** — Table of edge cases and expected behavior (Scenario | Behavior).
+5. **Implementation Guidelines** — Grouped by architectural layer (config, tool registration, documentation, tests).
+6. **What This Is NOT** — Explicit scope boundaries to prevent scope creep.
+
+## EDD — Engineering Design Document
+
+**File:** `edd-{issue#}-{title}.md` — tied to a single GitHub issue (e.g. `edd-35-email-id-refactor.md`)
+
+An EDD defines **how** to implement a specific issue. It is code-centric — showing actual TypeScript snippets, not pseudocode. The EDD is the spec that the SWE implements and the QE writes tests against.
+
+### Required sections
+
+1. **References** — Link to the parent PRD and the GitHub issue this EDD implements.
+2. **Goal** — 1–2 sentences. What this change achieves.
+3. **Approach** — 1–2 sentences. High-level strategy (e.g. "use a JSON replacer" or "GoF Decorator pattern").
+4. **Changes** — Per-file or per-module subsections with actual code snippets showing what will be added or modified. Include type signatures.
+5. **Files Changed** — Inventory table listing every affected file and the change (File | Change).
+6. **What Does NOT Change** — Explicit list of untouched areas to clarify scope.
+7. **Edge Cases** — Concrete examples with input/output (e.g. "Mailbox with colons: `Folders/My:Project:123`").
+8. **Smoke Test Scenarios** — Numbered, concrete, action-oriented scenarios. Each states the action, expected result, and what it validates. These are integration-level, not unit tests.
+
+### Maintaining EDDs
+
+EDDs are living documents. When refactoring changes the implementation, always propose updating the EDD. **Preserve historical context** — describe deviations from the original design rather than overwriting it. Use a "Deviations" subsection or inline notes (e.g. "Originally X, changed to Y because Z") so the rationale trail is not lost.
 
 # EDD workflow
 

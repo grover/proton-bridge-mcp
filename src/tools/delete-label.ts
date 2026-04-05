@@ -7,8 +7,11 @@ export const deleteLabelSchema = {
 };
 
 export async function handleDeleteLabel(
-  _args: { name: string },
-  _ops: MutatingMailOps,
+  args: { name: string },
+  ops: MutatingMailOps,
 ): Promise<SingleToolResult<DeleteLabelResult>> {
-  throw new Error('Not implemented');
+  if (args.name.includes('/')) {
+    throw new Error('INVALID_NAME: label name must not contain "/"');
+  }
+  return ops.deleteLabel(args.name);
 }

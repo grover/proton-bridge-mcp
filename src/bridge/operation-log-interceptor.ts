@@ -62,6 +62,15 @@ function buildCreateMailboxReversal(type: 'create_folder') {
 
 const buildCreateFolderReversal = buildCreateMailboxReversal('create_folder');
 
+function buildCreateLabelReversal(
+  _args: unknown[],
+  result: unknown,
+): ReversalSpec | null {
+  const r = result as SingleToolResult<CreateLabelResult>;
+  if (!r.data.created) return null;
+  return { type: 'create_label', name: r.data.name };
+}
+
 // buildAddLabelsReversal not yet tracked — requires deleteEmails (see TODO.md).
 
 // ── Interceptor ──────────────────────────────────────────────────────────────
@@ -101,9 +110,7 @@ export class OperationLogInterceptor {
     return { status: 'succeeded' as const, data };
   }
 
-  // Tracked as noop — reversal requires deleteLabel (existing GitHub issue).
-  // buildReversal returns null → @Tracked records { type: 'noop' }.
-  @Tracked('create_label', () => null)
+  @Tracked('create_label', buildCreateLabelReversal)
   async createLabel(name: string): Promise<SingleToolResult<CreateLabelResult>> {
     const data = await this.#imap.createLabel(name);
     return { status: 'succeeded' as const, data };
@@ -116,8 +123,9 @@ export class OperationLogInterceptor {
   }
 
   @IrreversibleWhen((result) => (result as SingleToolResult<DeleteLabelResult>).data.deleted)
-  async deleteLabel(_name: string): Promise<SingleToolResult<DeleteLabelResult>> {
-    throw new Error('Not implemented');
+  async deleteLabel(name: string): Promise<SingleToolResult<DeleteLabelResult>> {
+    const data = await this.#imap.deleteLabel(name);
+    return { status: 'succeeded' as const, data };
   }
 
   // Tracked as noop — reversal requires deleteEmails (separate branch).

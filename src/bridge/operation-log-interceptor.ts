@@ -118,7 +118,63 @@ export class OperationLogInterceptor {
 
   // ── Revert ────────────────────────────────────────────────────────────────
 
-  async revertOperations(_operationId: number): Promise<RevertResult> {
-    throw new Error('Not implemented');
+  async revertOperations(operationId: number): Promise<RevertResult> {
+    if (!this.log.has(operationId)) {
+      throw new Error('UNKNOWN_OPERATION_ID');
+    }
+
+    const records = this.log.getFrom(operationId);
+    const steps: RevertStepResult[] = [];
+
+    for (const record of records) {
+      try {
+        await this.#executeReversal(record.reversal);
+        this.log.remove(record.id);
+        steps.push({ operationId: record.id, tool: record.tool, status: 'success' });
+      } catch (err) {
+        steps.push({
+          operationId: record.id,
+          tool:        record.tool,
+          status:      'error',
+          error:       err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return {
+      stepsTotal:     steps.length,
+      stepsSucceeded: steps.filter(s => s.status === 'success').length,
+      stepsFailed:    steps.filter(s => s.status !== 'success').length,
+      steps,
+    };
+  }
+
+  async #executeReversal(spec: ReversalSpec): Promise<void> {
+    switch (spec.type) {
+      case 'move_batch':
+        for (const move of spec.moves) {
+          await this.#imap.moveEmails([move.from], move.to.mailbox);
+        }
+        break;
+
+      case 'mark_read':
+        await this.#imap.setFlag(spec.ids, '\\Seen', false);
+        break;
+
+      case 'mark_unread':
+        await this.#imap.setFlag(spec.ids, '\\Seen', true);
+        break;
+
+      case 'create_folder':
+        throw new Error('Reversal of create_folder not yet implemented — deleteFolder required');
+
+      case 'add_labels':
+        throw new Error('Reversal of add_labels not yet implemented — deleteEmails required');
+
+      default: {
+        const _exhaustive: never = spec;
+        throw new Error(`Unknown reversal type: ${(_exhaustive as ReversalSpec).type}`);
+      }
+    }
   }
 }

@@ -28,27 +28,18 @@ function buildMoveReversal(
   return { type: 'move_batch', moves };
 }
 
-function buildMarkReadReversal(
-  _args: unknown[],
-  result: unknown,
-): ReversalSpec {
-  const r = result as BatchToolResult<FlagResult>;
-  const ids = r.items
-    .filter(item => item.status === 'succeeded')
-    .map(item => item.id);
-  return { type: 'mark_read', ids };
+function buildFlagReversal(type: 'mark_read' | 'mark_unread') {
+  return (_args: unknown[], result: unknown): ReversalSpec => {
+    const r = result as BatchToolResult<FlagResult>;
+    const ids = r.items
+      .filter(item => item.status === 'succeeded')
+      .map(item => item.id);
+    return { type, ids };
+  };
 }
 
-function buildMarkUnreadReversal(
-  _args: unknown[],
-  result: unknown,
-): ReversalSpec {
-  const r = result as BatchToolResult<FlagResult>;
-  const ids = r.items
-    .filter(item => item.status === 'succeeded')
-    .map(item => item.id);
-  return { type: 'mark_unread', ids };
-}
+const buildMarkReadReversal = buildFlagReversal('mark_read');
+const buildMarkUnreadReversal = buildFlagReversal('mark_unread');
 
 function buildCreateFolderReversal(
   _args: unknown[],

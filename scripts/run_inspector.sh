@@ -49,7 +49,7 @@ MCP_HOST="${PROTONMAIL_MCP_HOST:-127.0.0.1}"
 MCP_PORT="${PROTONMAIL_MCP_PORT:-3000}"
 MCP_BASE="${PROTONMAIL_MCP_BASE_PATH:-/mcp}"
 MCP_URL="http://${MCP_HOST}:${MCP_PORT}${MCP_BASE}"
-INSPECTOR_URL="http://127.0.0.1:${INSPECTOR_PORT}"
+INSPECTOR_URL="http://localhost:${INSPECTOR_PORT}"
 
 # ── Start MCP server ──────────────────────────────────────────────────────────
 echo ""

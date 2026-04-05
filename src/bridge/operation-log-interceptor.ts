@@ -1,7 +1,7 @@
 import type { ImapClient } from './imap.js';
 import { OperationLog } from './operation-log.js';
 import { Tracked } from './decorators.js';
-import type { EmailId } from '../types/email.js';
+import { formatEmailId, type EmailId } from '../types/email.js';
 import type {
   BatchToolResult,
   MoveResult,
@@ -107,11 +107,17 @@ export class OperationLogInterceptor {
     const records = this.log.getFrom(operationId);
     const steps: RevertStepResult[] = [];
 
-    for (const record of records) {
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i]!;
       try {
-        await this.#executeReversal(record.reversal);
+        const uidMap = await this.#executeReversal(record.reversal);
         this.log.remove(record.id);
         steps.push({ operationId: record.id, tool: record.tool, status: 'succeeded' });
+
+        if (uidMap && uidMap.size > 0) {
+          const remaining = records.slice(i + 1).map(r => r.reversal);
+          this.#rewriteSpecs(remaining, uidMap);
+        }
       } catch (err) {
         steps.push({
           operationId: record.id,
@@ -130,33 +136,22 @@ export class OperationLogInterceptor {
     };
   }
 
-  async #executeReversal(spec: ReversalSpec): Promise<void> {
+  async #executeReversal(spec: ReversalSpec): Promise<Map<string, EmailId> | undefined> {
     switch (spec.type) {
       case 'noop':
-        break;
+        return undefined;
 
       case 'move_batch': {
-        // Group by target mailbox to minimize IMAP lock acquisitions
-        const byMailbox = new Map<string, EmailId[]>();
-        for (const move of spec.moves) {
-          const target = move.to.mailbox;
-          const ids = byMailbox.get(target) ?? [];
-          ids.push(move.from);
-          byMailbox.set(target, ids);
-        }
-        for (const [mailbox, ids] of byMailbox) {
-          await this.#imap.moveEmails(ids, mailbox);
-        }
-        break;
+        throw new Error('Not implemented');
       }
 
       case 'mark_read':
         await this.#imap.setFlag(spec.ids, '\\Seen', false);
-        break;
+        return undefined;
 
       case 'mark_unread':
         await this.#imap.setFlag(spec.ids, '\\Seen', true);
-        break;
+        return undefined;
 
       case 'create_folder':
       case 'add_labels':
@@ -169,5 +164,10 @@ export class OperationLogInterceptor {
         throw new Error(`Unknown reversal type: ${(_exhaustive as ReversalSpec).type}`);
       }
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  #rewriteSpecs(_specs: ReversalSpec[], _uidMap: Map<string, EmailId>): void {
+    throw new Error('Not implemented');
   }
 }

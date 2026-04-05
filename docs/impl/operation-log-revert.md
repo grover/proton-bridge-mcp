@@ -53,6 +53,16 @@ Tool handlers depend on `ReadOnlyMailOps` and `MutatingMailOps` interfaces (`src
 
 When a batch operation partially fails (e.g., 3 emails moved, 1 failed), the `ReversalSpec` records only the 3 that succeeded. Reverting that operation moves only those 3 back. The failed item was never mutated, so there's nothing to revert.
 
+### Idempotency and no-op handling
+
+IMAP flag operations are idempotent — adding a flag that already exists or removing one that doesn't both succeed silently at the protocol level. Without detection, this creates false reversals: `mark_unread` on an already-unread email would record a reversal that adds `\Seen`, falsely marking it as read.
+
+**Detection:** `setFlag` fetches `flagsBefore` for all emails in a mailbox group before modifying. It skips emails already in the target state and returns both `flagsBefore` and `flagsAfter` in `FlagResult`. `buildFlagReversal` compares the two: only emails where the flag actually changed are included in the reversal.
+
+**Stable response shape:** When `buildReversal` returns `null` (all no-ops, or tools like `create_folder` whose reversal isn't implemented yet), `@Tracked` records a `{ type: 'noop' }` entry. This ensures `operationId` is **always present** in every mutating tool response. LLM clients never need to check whether the field exists — it's always a number.
+
+**Reverting a noop:** `#executeReversal` handles `type: 'noop'` by doing nothing. The revert reports `stepsSucceeded: 1` — the "undo nothing" operation succeeds.
+
 ### Reversals bypass the interceptor
 
 When `revertOperations` executes reversals, it calls `ImapClient` directly — not the interceptor. This prevents:

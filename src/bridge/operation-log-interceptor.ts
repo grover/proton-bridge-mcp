@@ -104,8 +104,8 @@ export class OperationLogInterceptor {
   // buildReversal returns null → @Tracked records { type: 'noop' }.
   @Tracked('create_label', () => null)
   async createLabel(name: string): Promise<SingleToolResult<CreateLabelResult>> {
-    const data = await this.#imap.createLabel(name);
-    return { status: 'succeeded' as const, data };
+    const result = await this.#imap.createLabel(name);
+    return { status: 'succeeded' as const, data: { name, created: result.created } };
   }
 
   @IrreversibleWhen((result) => (result as SingleToolResult<DeleteFolderResult>).data.deleted)

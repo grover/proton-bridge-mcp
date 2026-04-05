@@ -93,8 +93,11 @@ export interface CreateMailboxResult {
 /** Result of a folder creation */
 export type CreateFolderResult = CreateMailboxResult;
 
-/** Result of a label creation */
-export type CreateLabelResult = CreateMailboxResult;
+/** Result of a label creation — uses name (not path) to avoid LLM confusion with label tools */
+export interface CreateLabelResult {
+  name:    string;
+  created: boolean;
+}
 
 /** Result of a folder deletion */
 export interface DeleteFolderResult {

@@ -17,7 +17,6 @@ import type {
   LabelInfo,
   CreateMailboxResult,
   CreateFolderResult,
-  CreateLabelResult,
   DeleteFolderResult,
   MoveBatchResult,
   FlagBatchResult,
@@ -96,7 +95,7 @@ export class ImapClient {
   }
 
   @Audited('create_label')
-  async createLabel(name: string): Promise<CreateLabelResult> {
+  async createLabel(name: string): Promise<CreateMailboxResult> {
     return this.#createMailbox(`Labels/${name}`);
   }
 

@@ -50,7 +50,7 @@ INSPECTOR_URL="http://127.0.0.1:${INSPECTOR_PORT}"
 # ── Start MCP server ──────────────────────────────────────────────────────────
 echo ""
 echo "Starting MCP server on ${MCP_URL} ..."
-node dist/index.js &
+node dist/index.js --http &
 SERVER_PID=$!
 
 cleanup() {

@@ -167,11 +167,12 @@ An EDD defines **how** to implement a specific issue. It is code-centric — sho
 1. **References** — Link to the parent PRD and the GitHub issue this EDD implements.
 2. **Goal** — 1–2 sentences. What this change achieves.
 3. **Approach** — 1–2 sentences. High-level strategy (e.g. "use a JSON replacer" or "GoF Decorator pattern").
-4. **Changes** — Per-file or per-module subsections with actual code snippets showing what will be added or modified. Include type signatures.
-5. **Files Changed** — Inventory table listing every affected file and the change (File | Change).
-6. **What Does NOT Change** — Explicit list of untouched areas to clarify scope.
-7. **Edge Cases** — Concrete examples with input/output (e.g. "Mailbox with colons: `Folders/My:Project:123`").
-8. **Smoke Test Scenarios** — Numbered, concrete, action-oriented scenarios. Each states the action, expected result, and what it validates. These are integration-level, not unit tests.
+4. **Alternatives Considered** — Other approaches evaluated and why they were rejected. Forces critical thinking and preserves decision rationale for future developers.
+5. **Changes** — Per-file or per-module subsections with actual code snippets showing what will be added or modified. Include type signatures.
+6. **Files Changed** — Inventory table listing every affected file and the change (File | Change).
+7. **What Does NOT Change** — Explicit list of untouched areas to clarify scope.
+8. **Edge Cases** — Concrete examples with input/output (e.g. "Mailbox with colons: `Folders/My:Project:123`").
+9. **Smoke Test Scenarios** — Numbered, concrete, action-oriented scenarios. Each states the action, expected result, and what it validates. These are integration-level, not unit tests.
 
 ### Maintaining EDDs
 

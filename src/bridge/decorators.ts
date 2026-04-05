@@ -35,14 +35,25 @@ export type BuildReversalFn = (args: unknown[], result: unknown) => ReversalSpec
  * to `this.log`. Extends the result with `operationId`.
  * Requires the class to have a public `log: OperationLog` property.
  */
-export function Tracked(_toolName: string, _buildReversal: BuildReversalFn) {
+export function Tracked(toolName: string, buildReversal: BuildReversalFn) {
   return function (
     _target: object,
     _propertyKey: string | symbol,
     descriptor: PropertyDescriptor,
   ): PropertyDescriptor {
-    descriptor.value = async function () {
-      throw new Error('Not implemented');
+    const original = descriptor.value as (this: { log: OperationLog }, ...args: unknown[]) => Promise<unknown>;
+    descriptor.value = async function (this: { log: OperationLog }, ...args: unknown[]) {
+      const result = await original.apply(this, args);
+      const reversal = buildReversal(args, result);
+      if (reversal !== null) {
+        const operationId = this.log.push({
+          tool: toolName,
+          reversal,
+          timestamp: new Date().toISOString(),
+        });
+        return { ...(result as object), operationId };
+      }
+      return result;
     };
     return descriptor;
   };
@@ -58,8 +69,11 @@ export function Irreversible(
   _propertyKey: string | symbol,
   descriptor: PropertyDescriptor,
 ): PropertyDescriptor {
-  descriptor.value = async function () {
-    throw new Error('Not implemented');
+  const original = descriptor.value as (this: { log: OperationLog }, ...args: unknown[]) => Promise<unknown>;
+  descriptor.value = async function (this: { log: OperationLog }, ...args: unknown[]) {
+    const result = await original.apply(this, args);
+    this.log.clear();
+    return result;
   };
   return descriptor;
 }

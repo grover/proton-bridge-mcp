@@ -62,6 +62,11 @@ See [M3 PRD](plans/m3-folders-labels-revert.md) for full tool specifications, im
 * `create_folder` — create new user folders
 * `add_labels` — bulk copy emails into label folders
 
+**In Progress:**
+* `revert_operations` — undo tool with `OperationLog` ring buffer ([EDD](plans/edd-21-operation-log-revert.md))
+* `@Tracked` / `@Irreversible` decorators
+* `OperationLogInterceptor` — GoF Decorator wrapping ImapClient for operation tracking
+
 **Pending:**
 * `delete_folder` — delete user folders
 * `create_label` — create labels

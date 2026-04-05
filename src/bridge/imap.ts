@@ -30,6 +30,7 @@ import type {
   AddLabelsBatchResult,
   AddLabelsItemData,
   RemoveLabelsBatchResult,
+  RemoveLabelResult,
 } from '../types/index.js';
 import { batchStatus } from '../types/index.js';
 
@@ -447,8 +448,92 @@ export class ImapClient {
   }
 
   @Audited('remove_labels')
-  async removeLabels(_ids: EmailId[], _labelNames: string[]): Promise<RemoveLabelsBatchResult> {
-    throw new Error('Not implemented');
+  async removeLabels(ids: EmailId[], labelNames: string[]): Promise<RemoveLabelsBatchResult> {
+    const labelPaths = labelNames.map(name => `Labels/${name}`);
+    const items: Array<BatchItemResult<RemoveLabelResult[]>> =
+      ids.map(id => ({ id, status: 'failed' as const }));
+    const groups = groupByMailbox(ids);
+
+    const conn = await this.#pool.acquire();
+    try {
+      // Phase 1: Fetch Message-IDs from source mailboxes
+      const messageIds = new Map<number, string>();
+      for (const { mailbox, entries } of groups) {
+        const lock = await conn.getMailboxLock(mailbox);
+        try {
+          for (const { index, id } of entries) {
+            for await (const msg of conn.fetch(String(id.uid), {
+              uid: true, envelope: true,
+            }, { uid: true })) {
+              if (msg.envelope?.messageId) {
+                messageIds.set(index, msg.envelope.messageId);
+              }
+            }
+          }
+        } finally {
+          lock.release();
+        }
+      }
+
+      // Phase 2: Remove from each label folder
+      for (const labelPath of labelPaths) {
+        let lock;
+        try {
+          lock = await conn.getMailboxLock(labelPath);
+        } catch {
+          for (let i = 0; i < ids.length; i++) {
+            items[i] = {
+              id: ids[i]!,
+              status: 'failed',
+              error: { code: 'LABEL_NOT_FOUND', message: `Label folder ${labelPath} does not exist` },
+            };
+          }
+          continue;
+        }
+        try {
+          for (let i = 0; i < ids.length; i++) {
+            const msgId = messageIds.get(i);
+            if (!msgId) {
+              const existing = items[i]!.data ?? [];
+              existing.push({ labelPath, removed: false });
+              items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+              continue;
+            }
+
+            try {
+              const uids = await conn.search(
+                { header: { 'message-id': msgId } },
+                { uid: true },
+              );
+
+              if (!uids || uids.length === 0) {
+                const existing = items[i]!.data ?? [];
+                existing.push({ labelPath, removed: false });
+                items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+                continue;
+              }
+
+              await conn.messageDelete(String(uids[0]), { uid: true });
+              const existing = items[i]!.data ?? [];
+              existing.push({ labelPath, removed: true });
+              items[i] = { id: ids[i]!, status: 'succeeded' as const, data: existing };
+            } catch (err) {
+              items[i] = {
+                id: ids[i]!,
+                status: 'failed',
+                error: { code: 'REMOVE_FAILED', message: err instanceof Error ? err.message : String(err) },
+              };
+            }
+          }
+        } finally {
+          lock.release();
+        }
+      }
+    } finally {
+      this.#pool.release(conn);
+    }
+
+    return { status: batchStatus(items), items };
   }
 
   /** Shared helper: fetch per mailbox group, reorder to match input order */

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { FlagBatchResult } from '../types/index.js';
+import type { BatchToolResult, FlagResult } from '../types/index.js';
+import { batchStatus } from '../types/index.js';
 
 const emailIdSchema = z.object({
   uid:     z.number().int().positive().describe('IMAP UID'),
@@ -15,6 +16,7 @@ export const markUnreadSchema = {
 export async function handleMarkUnread(
   args: { ids: Array<{ uid: number; mailbox: string }> },
   imap: ImapClient,
-): Promise<FlagBatchResult> {
-  return imap.setFlag(args.ids, '\\Seen', false);
+): Promise<BatchToolResult<FlagResult>> {
+  const items = await imap.setFlag(args.ids, '\\Seen', false);
+  return { status: batchStatus(items), items };
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { EmailSummary } from '../types/index.js';
+import type { ListToolResult, EmailSummary } from '../types/index.js';
 
 export const listMailboxSchema = {
   mailbox: z.string().min(1).default('INBOX').describe('Mailbox name (e.g. INBOX, Sent, Trash)'),
@@ -11,6 +11,7 @@ export const listMailboxSchema = {
 export async function handleListMailbox(
   args:  { mailbox: string; limit: number; offset: number },
   imap:  ImapClient,
-): Promise<EmailSummary[]> {
-  return imap.listMailbox(args.mailbox, args.limit, args.offset);
+): Promise<ListToolResult<EmailSummary>> {
+  const items = await imap.listMailbox(args.mailbox, args.limit, args.offset);
+  return { status: 'succeeded' as const, items };
 }

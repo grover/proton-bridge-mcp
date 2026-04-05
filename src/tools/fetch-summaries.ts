@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { EmailSummary } from '../types/index.js';
+import type { ListToolResult, EmailSummary } from '../types/index.js';
 
 const emailIdSchema = z.object({
   uid:     z.number().int().positive().describe('IMAP UID'),
@@ -14,6 +14,7 @@ export const fetchSummariesSchema = {
 export async function handleFetchSummaries(
   args: { ids: Array<{ uid: number; mailbox: string }> },
   imap: ImapClient,
-): Promise<EmailSummary[]> {
-  return imap.fetchSummaries(args.ids);
+): Promise<ListToolResult<EmailSummary>> {
+  const items = await imap.fetchSummaries(args.ids);
+  return { status: 'succeeded' as const, items };
 }

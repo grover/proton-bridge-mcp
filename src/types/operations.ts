@@ -1,5 +1,35 @@
 import type { EmailId } from './email.js';
 
+// ── Status types ───────────────────────────────────────────────────────────────
+
+/** Top-level status for every tool response. */
+export type ToolStatus = 'succeeded' | 'partial' | 'failed';
+
+/** Per-item status inside batch results. */
+export type ItemStatus = 'succeeded' | 'failed';
+
+// ── Wrapper result types ───────────────────────────────────────────────────────
+
+/** Wrapper for batch-mutating tool results. */
+export interface BatchToolResult<T> {
+  status: ToolStatus;
+  items:  BatchItemResult<T>[];
+}
+
+/** Wrapper for read-only tools that return arrays. */
+export interface ListToolResult<T> {
+  status: ToolStatus;
+  items:  T[];
+}
+
+/** Wrapper for single-item tool results. */
+export interface SingleToolResult<T> {
+  status: ToolStatus;
+  data:   T;
+}
+
+// ── Batch item types ───────────────────────────────────────────────────────────
+
 /** Shared error shape for per-item batch failures. */
 export interface BatchItemError {
   code:    string;
@@ -12,8 +42,20 @@ export interface BatchItemError {
  */
 export interface BatchItemResult<T> {
   id:     EmailId;
+  status: ItemStatus;
   data?:  T;
   error?: BatchItemError;
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+
+/** Compute top-level status from per-item statuses. */
+export function batchStatus<T>(items: BatchItemResult<T>[]): ToolStatus {
+  if (items.length === 0) return 'succeeded';
+  const failed = items.filter(i => i.status === 'failed').length;
+  if (failed === 0) return 'succeeded';
+  if (failed === items.length) return 'failed';
+  return 'partial';
 }
 
 /** Result of a single email move */
@@ -37,17 +79,8 @@ export interface AddLabelsItemData {
   newId?:    EmailId;
 }
 
-/** Per-email result for add_labels */
-export interface AddLabelsItem {
-  id:     EmailId;
-  data?:  AddLabelsItemData[];
-  error?: BatchItemError;
-}
-
-/** Batch result for add_labels */
-export interface AddLabelsBatchResult {
-  items: AddLabelsItem[];
-}
+/** Batch result for add_labels — unified with BatchItemResult */
+export type AddLabelsBatchResult = BatchToolResult<AddLabelsItemData[]>;
 
 /** Result of a folder creation */
 export interface CreateFolderResult {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { MoveBatchResult } from '../types/index.js';
+import type { BatchToolResult, MoveResult } from '../types/index.js';
+import { batchStatus } from '../types/index.js';
 
 const emailIdSchema = z.object({
   uid:     z.number().int().positive().describe('IMAP UID'),
@@ -17,6 +18,7 @@ export const moveEmailsSchema = {
 export async function handleMoveEmails(
   args: { ids: Array<{ uid: number; mailbox: string }>; targetMailbox: string },
   imap: ImapClient,
-): Promise<MoveBatchResult> {
-  return imap.moveEmails(args.ids, args.targetMailbox);
+): Promise<BatchToolResult<MoveResult>> {
+  const items = await imap.moveEmails(args.ids, args.targetMailbox);
+  return { status: batchStatus(items), items };
 }

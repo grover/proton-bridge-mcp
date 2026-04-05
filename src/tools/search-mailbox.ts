@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ImapClient } from '../bridge/imap.js';
-import type { EmailSummary } from '../types/index.js';
+import type { ListToolResult, EmailSummary } from '../types/index.js';
 
 export const searchMailboxSchema = {
   mailbox: z.string().min(1).default('INBOX').describe('Mailbox to search in'),
@@ -12,6 +12,7 @@ export const searchMailboxSchema = {
 export async function handleSearchMailbox(
   args: { mailbox: string; query: string; limit: number; offset: number },
   imap: ImapClient,
-): Promise<EmailSummary[]> {
-  return imap.searchMailbox(args.mailbox, args.query, args.limit, args.offset);
+): Promise<ListToolResult<EmailSummary>> {
+  const items = await imap.searchMailbox(args.mailbox, args.query, args.limit, args.offset);
+  return { status: 'succeeded' as const, items };
 }

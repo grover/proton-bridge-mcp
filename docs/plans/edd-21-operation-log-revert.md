@@ -274,7 +274,7 @@ When `buildReversal` returns `null` (all no-ops, or tools without real reversal 
 | 6 | `mark_unread` on already-unread (no-op) | `operationId` present, revert is harmless |
 | 7 | `move_emails` to test folder | `operationId` present |
 | 8 | Revert move | Email back in original mailbox |
-| 9 | Chain: `mark_read` → `move_emails` → revert from mark_read ID | **Known limitation:** flag reversal uses stale UIDs after move revert ([#45](https://github.com/grover/proton-bridge-mcp/issues/45)) |
+| 9 | Chain: `mark_read` → `move_emails` → revert from mark_read ID | All steps succeed; email back in original mailbox AND marked unread (fixed in [#45](https://github.com/grover/proton-bridge-mcp/issues/45)) |
 | 10 | Unknown operation ID | `UNKNOWN_OPERATION_ID` error |
 | 11 | `create_folder` | `operationId` present (noop reversal) |
 | 12 | `add_labels` | `operationId` present (noop reversal) |

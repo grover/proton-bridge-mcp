@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `revert_operations` now rewrites stale UIDs during chain reverts that include `move_emails` — flag reversals after a move reversal target the correct emails (#45)
+
 ### Added
 
 - Jest test infrastructure (`jest.config.ts`, `tsconfig.test.json`, ESLint test config)

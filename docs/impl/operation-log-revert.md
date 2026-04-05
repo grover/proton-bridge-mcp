@@ -159,6 +159,19 @@ For **irreversible** operations (e.g., `delete_folder` which destroys data that 
 1. Apply `@Irreversible` instead of `@Tracked`. This clears the log after success — all prior operation IDs become `UNKNOWN_OPERATION_ID`.
 2. Document clearly that this operation is irreversible and will invalidate all pending operation IDs.
 
+### UID rewriting during chain revert
+
+When `revert_operations` reverses a chain that includes a `move_emails`, the move reversal assigns new UIDs (via COPYUID). Earlier reversal specs in the chain still reference the original UIDs, which are now stale. Without correction, flag reversals would target the wrong emails.
+
+**Solution:** After each `move_batch` reversal, `#executeReversal` captures a UID mapping (`formatEmailId(originalId)` → new `EmailId`) from the COPYUID response. `revertOperations` passes this map to `#rewriteSpecs`, which mutates remaining reversal specs in-place — replacing stale EmailIds in `mark_read`/`mark_unread` `.ids` arrays and `move_batch` `.moves` entries.
+
+This approach is:
+- **Progressive:** Each move reversal produces its own map; cascading moves (A→B then B→C) are handled by applying maps sequentially as the loop progresses.
+- **Best-effort:** If a move reversal fails (caught by the existing try/catch), no rewriting occurs and subsequent specs keep their original UIDs. If COPYUID is missing (`targetId: undefined`), that email is skipped in the map.
+- **Zero-allocation on non-move reversals:** `#executeReversal` returns `undefined` for all non-move spec types; `revertOperations` only calls `#rewriteSpecs` when the map is non-empty.
+
+See [EDD-45](../plans/edd-45-uid-rewriting-chain-revert.md) for full design rationale and unit test plan.
+
 ### Missing COPYUID and reversal correctness
 
 IMAP `MOVE` and `COPY` commands may return a `COPYUID` response mapping source UIDs to target UIDs. If the server omits this (Proton Bridge typically provides it, but it's not guaranteed by the protocol), the `targetId` field will be `undefined`. A `move_batch` reversal with a missing `targetId` is silently excluded from the reversal — the email cannot be moved back because we don't know its new UID. This is a known limitation documented in the `MoveResult` type.

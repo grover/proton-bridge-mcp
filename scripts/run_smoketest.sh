@@ -189,13 +189,4 @@ echo "║  Run again to restart, or kill PIDs when done.             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# ── Open browser after 10s ───────────────────────────────────────────────────
-(
-  sleep 10
-  if command -v open >/dev/null 2>&1; then
-    open "$INSPECTOR_URL"
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$INSPECTOR_URL"
-  fi
-) &
-disown
+# Browser is opened by the MCP Inspector itself — no need to open again.

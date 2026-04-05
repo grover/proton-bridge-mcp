@@ -1,12 +1,148 @@
-# proton-bridge-mcp — Claude Code Guide
+# Project
 
-> **Auto-update rule:** After each session that changes code, patterns, or learnings, update this file.
-> Add new findings to "Key Learnings", keep "MCP Tools" and "Milestone Status" accurate.
+You work on proton-bridge-mcp - An MCP server bridging ProtonMail via the local Proton Bridge IMAP daemon.
 
-## What This Is
+Consult `README.md` for user facing project details
 
-MCP server bridging ProtonMail via the local Proton Bridge IMAP daemon (`127.0.0.1:1143` by default).
-See [project-spec.md](project-spec.md) for milestone roadmap. See [ARCHITECTURE.md](ARCHITECTURE.md) for design detail.
+## Requirements
+
+- Project is a background daemon
+- Good logging in code necessary for diagnostics
+- Every public `ImapClient` method must use `@Audited('operation_name')` — see `ARCHITECTURE.md` "decorators.ts" for mechanics.
+
+### Operation modes
+- **STDIO (default):** no flags needed; `src/stdio.ts` connects one `McpServer` to `StdioServerTransport`
+- **HTTP:** `--http`; each session gets its own `McpServer` instance (created in `createHttpApp`)
+- **HTTPS:** `--https`; same as HTTP but with TLS; auto-generates self-signed cert if no cert/key provided
+- Transport mode is CLI-flag only — no env var (`PROTONMAIL_HTTPS` removed)
+- `ImapClient` and `ImapConnectionPool` are shared singletons across all modes
+
+
+### Standardized Tool Result Structure
+- All tool responses include a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
+  - **Batch tools:** `BatchToolResult<T>` — `{ status, items: BatchItemResult<T>[] }` with per-item `status: ItemStatus`
+  - **List tools:** `ListToolResult<T>` — `{ status: 'succeeded', items: T[] }` (throw on failure)
+  - **Single tools:** `SingleToolResult<T>` — `{ status, data: T }`
+  - Use `batchStatus(items)` utility to compute top-level status from per-item results.
+
+### Choosing a Result Type
+- **BatchToolResult<T>**: Operations on `EmailId[]` where individual items can fail independently (move, mark, add_labels)
+- **ListToolResult<T>**: Read operations returning collections that either fully succeed or throw (list_mailbox, get_folders, fetch_summaries, search_mailbox)
+- **SingleToolResult<T>**: Operations on a single entity or returning a single result (fetch_attachment, verify_connectivity, drain_connections, create_folder)
+
+### Tool Annotations
+- All tools must declare `annotations` with `readOnlyHint` and `destructiveHint` booleans.
+- Three annotation presets defined in `src/server.ts`: `READ_ONLY`, `MUTATING`, `DESTRUCTIVE`.
+- See `docs/tools/README.md` for per-tool annotation values.
+
+
+# Conventions
+- **Autonomous execution:** Don't ask confirmation for routine ops (file edits, git, build, lint, start/stop servers)
+- **Pre-commit:** rebase -> npm install -> lint -> build -> npm ci
+- **Smoke test setup:** Start MCP server + inspector fully configured from .env; don't make user do manual setup
+- **Smoke test failures:** Capture in GitHub issue acceptance criteria; repeat all prior failures when re-testing
+- **Numbered workflows:** Are enforceable and cannot skip
+- **Auto-update rule:** After each major code changes, new patterns, or learnings, update `CLAUDE.md`, `ARCHITECTURE.md`, or other documentation file.
+- **App logger** (`src/logger.ts`): pino → stderr (default) or `PROTONMAIL_LOG_PATH`
+- **Audit logger** (`src/bridge/audit.ts`): JSONL → `PROTONMAIL_AUDIT_LOG_PATH` (file only, **never stderr**)
+- stderr is reserved for operational/MCP/Fastify output
+
+# Orchestrator Workflow
+
+When working a ticket, you cycle through these personas as the orchestrator:
+
+1. Responsible for project success
+2. Actively seeks parallelization opportunity and possibly **delegate** to an agent
+3. Receives a ticket to work on from **User**
+4. Creates branch per policy
+5. Spins up EDD workflow
+6. Commits EDD, pushes branch
+7. Spins up ticket workflow
+8. **User smoke tests** - **Orchestrator** show what they're testing, test cases, previously failed tests in status dashboard
+9. **Orchestrator** commits, pushes, creates PR
+10. Ensures learnings are written to `CLAUDE.md`, `ARCHITECTURE.md` and `CHANGELOG.md` other files
+11. User requests refactorings / bug fixes / changes at this stage: Create a ticket and start working on that
+
+## Quality engineer (QE) persona
+- Defines smoke tests with numbered scenarios (input, expected output, what it validates)
+- Defines regression tests, updates GitHub issue description
+- Reviews EDD for testability, enhances with unit test plan
+- Writes unit tests against skeleton
+
+## Software engineer (SWE) persona
+- Implements code per EDD following Uncle Bob clean code
+- Small, named, self-explanatory functions; public-first ordering; small focused commits
+- Red-green-refactor cycle per unit test
+- Acts on GitHub PR review comments -- fix, review, push without waiting for user
+
+## Reviewer persona
+- Strict code review -- iterates until clean, does not let marginal issues slide
+- Reports findings as MUST FIX / SHOULD FIX / NITPICK
+- Review checklist (all mandatory):
+  - Clean code (Uncle Bob): SRP, DRY, meaningful names, no dead code, early returns
+  - SOLID violations -> MUST FIX
+  - Code smells -> SHOULD FIX
+  - TOCTOU race conditions -- don't pre-validate mutable external state
+  - Connection reuse -- single acquire, do all work, release once
+  - Reusable type extraction -- shared types not inline/duplicated
+  - Algorithm correctness and efficiency
+  - Import hygiene (`.js` extensions for ESM)
+  - Documentation accuracy (CLAUDE.md, ARCHITECTURE.md, CHANGELOG.md)
+  - Security (OWASP)
+- Detects
+  - Long functions (>50 lines)
+  - Large files (>500 lines)
+  - God classes (>20 methods)
+  - Deep nesting (>4 levels)
+  - Too many parameters (>5)
+  - High cyclomatic complexity (>7 branches)
+  - Missing or wrong error handling
+  - Unused imports
+  - Magic numbers
+
+
+# Branching policy
+
+- Branch names are structured: `{type}/{issue#}-{title}`.
+- Branch type is bug | feat | refactor -> analyze issue description to determine type
+- Repository uses GitHub flow
+- New branches always taken from latest `main` branch
+
+# EDD workflow
+
+1. As a **QE**, you define smoke tests + regression tests, updates GitHub issue
+2. As a **SWE**, you write an EDD in `docs/plans/edd-{issue#}-{title}.md`
+3. As a **QE**, you review EDD, enhances with unit test plan
+4. As a **Reviewer**, you reviews EDD
+5. Loop steps 2-4 until EDD is ready for user review
+6. **User approves EDD**
+
+
+# Ticket workflow
+
+1. As a **SWE**, you implement empty skeleton (no functionality)
+2. As a **QE**, you implement unit tests per EDD against skeleton
+3. As a **QE**, you verify that all new tests fail
+4. As a **SWE**, you review tests, then red-green-refactor cycle:
+  4.1. Execute test to prove it fails (red)
+  4.2. Implement code until test pass (green)
+  4.3. Refactor while maintaining green for all prior green tests
+5. As a **Reviewer**, you review generated code (strict, iterate between 4 and 5 until all findings are resolved)
+
+
+# Test methodologies
+
+- Project relies heavily on unit & smoke testing
+- Each feature defines smoke tests to ensure it works
+
+# Engineering principles
+
+- Apply TDD
+- Clean code (Uncle Bob): SRP, DRY, meaningful names, no dead code, early returns, small functions, readable file structure
+- Accurate minimal code documentation
+- Fail fast: Write code with fail-fast logic by default. Do not swallow exceptions with errors or warnings
+- No fallback logic: Do not add fallback logic unless explicitly told to and agreed with the user
+- No guessing: Do not say "The issue is..." before you actually know what the issue is. Investigate first.
 
 ## Pre-commit Checklist
 
@@ -41,9 +177,6 @@ node dist/index.js --http \          # HTTP mode — requires auth token
 npm run package                      # build + create proton-bridge-mcp.mcpb for Claude Desktop
 ```
 
-Copy `.env.example` → `.env`. The bridge password comes from the Proton Bridge desktop app
-(Account → Mailbox password), **not** your ProtonMail login password.
-
 ## CI & Release
 
 ### CI (`.github/workflows/ci.yml`)
@@ -72,94 +205,13 @@ Required status checks to configure in GitHub branch protection: **Lint**, **Bui
 npm publish is enabled (`"publish": true`); requires `NPM` secret in GitHub repo settings.
 `package.json` `files` field limits the npm tarball to `dist/`, `manifest.json`, `CHANGELOG.md`, and `LICENSE`.
 
-### Node version pinning
+# Node, TypeScript, libraries...
+
+## Version pinning
+- TypeScript 6
 - `.nvmrc`: `25.9.0` — nvm/mise/asdf local dev
 - `package.json` `volta.node`: `25.9.0` — Volta local dev
 - `env.NODE_VERSION` in each workflow file — single source per file
-
-## Milestone Status (project-spec.md)
-
-| Milestone | Status | Notes |
-|---|---|---|
-| MVP | **Complete** | Scaffolding + IMAP pool + audit + verify + `get_folders` + idle drain timer |
-| M1 | **Complete** | `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
-| M2 | **Complete** | STDIO default transport + MCPB packaging; OAuth (issue #7) not started |
-| M3 | In progress | `get_folders`, `create_folder`, `add_labels`, `mark_read`, `mark_unread` done; `get_labels`, operation log, tool result standardization in flight |
-| M4–M5 | Not started | |
-
-**Next:** Complete M3 — get_labels, operation log + revert, remaining folder/label tools.
-
-## Key Patterns
-
-### Pool Version Pattern (`src/bridge/pool.ts`)
-Do NOT use a `#draining` flag. Use `#poolVersion`:
-- Each connection stamped `{ conn, version: this.#poolVersion }` at creation
-- `drain()` increments `#poolVersion`, closes available connections immediately
-- `release(conn)`: if `conn.version < #poolVersion` → close it + replenish; else return to pool
-- Safe for multiple consecutive drains. Pool stays live without restart.
-
-### `@Audited` Decorator (`src/bridge/decorators.ts`)
-Every public `ImapClient` method must be decorated with `@Audited('operation_name')`.
-Wraps the method in `this.audit.wrap()` — no manual audit calls needed in method bodies.
-The class must expose `audit: AuditLogger` as a public property (not private).
-
-### Standardized Tool Result Structure
-Every tool response includes a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
-Three wrapper types:
-- `BatchToolResult<T>` — batch-mutating tools: `{ status, items: BatchItemResult<T>[] }`
-- `ListToolResult<T>` — read-only array tools: `{ status, items: T[] }`
-- `SingleToolResult<T>` — single-item tools: `{ status, data: T }`
-
-Each `BatchItemResult<T>` also carries `status: ItemStatus` (`'succeeded' | 'failed'`).
-Use `batchStatus(items)` utility to compute the top-level status from per-item statuses.
-Read-only tools always return `status: 'succeeded'` (they throw on failure).
-
-### Batch Operations + Index Stability
-All `ImapClient` methods taking `EmailId[]` preserve input order in results.
-`BatchItemResult<T>[]` ops: result[i] ↔ input[i], with success or `{ code, message }` error.
-Internals: group IDs by mailbox → one `getMailboxLock` per group → reorder before return.
-
-### IMAP Mailbox Lock
-```typescript
-const conn = await this.pool.acquire();
-const lock = await conn.getMailboxLock(mailbox);
-try {
-  // IMAP operations
-} finally {
-  lock.release();       // always release lock first
-  this.pool.release(conn);  // then return connection to pool
-}
-```
-
-### Logging Separation
-- **App logger** (`src/logger.ts`): pino → stderr (default) or `PROTONMAIL_LOG_PATH`
-- **Audit logger** (`src/bridge/audit.ts`): JSONL → `PROTONMAIL_AUDIT_LOG_PATH` (file only, **never stderr**)
-- stderr is reserved for operational/MCP/Fastify output
-
-### Config Precedence
-CLI args (`commander`) → env vars → defaults. All env vars prefixed `PROTONMAIL_`.
-`loadConfig(process.argv)` throws with the flag/var name if a required value is missing.
-
-### Standardized Tool Result Structure
-All tool responses include a top-level `status: ToolStatus` (`'succeeded' | 'partial' | 'failed'`).
-- **Batch tools:** `BatchToolResult<T>` — `{ status, items: BatchItemResult<T>[] }` with per-item `status: ItemStatus`
-- **List tools:** `ListToolResult<T>` — `{ status: 'succeeded', items: T[] }` (throw on failure)
-- **Single tools:** `SingleToolResult<T>` — `{ status, data: T }`
-- Use `batchStatus(items)` utility to compute top-level status from per-item results.
-
-### groupByMailbox Pattern (`src/bridge/imap.ts`)
-Returns `MailboxGroup[]` with pre-computed indices for O(n) result placement:
-```typescript
-interface MailboxGroup { mailbox: string; entries: Array<{ index: number; id: EmailId }> }
-```
-Callers use `entry.index` for result placement — never `indexOf`.
-
-### Transport Modes
-- **STDIO (default):** no flags needed; `src/stdio.ts` connects one `McpServer` to `StdioServerTransport`
-- **HTTP:** `--http`; each session gets its own `McpServer` instance (created in `createHttpApp`)
-- **HTTPS:** `--https`; same as HTTP but with TLS; auto-generates self-signed cert if no cert/key provided
-- Transport mode is CLI-flag only — no env var (`PROTONMAIL_HTTPS` removed)
-- `ImapClient` and `ImapConnectionPool` are shared singletons across all modes
 
 ## NodeNext ESM Import Rule
 All local imports MUST use `.js` extension:
@@ -168,51 +220,8 @@ import { ImapClient } from './bridge/imap.js';  // ✓
 import { ImapClient } from './bridge/imap';      // ✗ fails at runtime
 ```
 
-## Key Learnings (from build + implementation)
-
-| Issue | Root Cause | Fix |
-|---|---|---|
-| `conn.mailbox?.exists` | `imapflow`: `conn.mailbox` is `false \| MailboxObject`, not just `MailboxObject` | Guard: `conn.mailbox !== false ? conn.mailbox.exists : 0` |
-| `parsed.html ?? undefined` | `mailparser`: `html` is `string \| false`, not `string \| undefined` | Use `\|\|` not `??`: `parsed.html \|\| undefined` |
-| `moved['uidMap'][uid]` | `imapflow`: `CopyResponseObject.uidMap` is `Map<number,number>` not a plain object | `moved !== false ? moved.uidMap?.get(uid) : undefined` |
-| `logPath: undefined` in config | `exactOptionalPropertyTypes`: can't assign `undefined` to `prop?: T` | Conditional spread: `...(val ? { logPath: val } : {})` |
-| `server.connect(transport)` | MCP SDK: `StreamableHTTPServerTransport.onclose` is optional but `Transport` requires non-optional — `exactOptionalPropertyTypes` mismatch | Cast: `transport as Parameters<typeof server.connect>[0]` |
-| `server.tool()` with annotations | MCP SDK v1: the 5-arg `tool(name, desc, schema, annotations, cb)` overload is deprecated | Use `server.registerTool(name, { description, inputSchema, annotations }, cb)` instead |
-| Fastify logger generic | `loggerInstance: pinoLogger` infers `AppLogger` generic; incompatible with `FastifyBaseLogger` return type | Cast: `logger as unknown as FastifyBaseLogger` |
-| TC39 decorator syntax at runtime | TypeScript 6 with `target: ESNext` emits `@Decorator(...)` verbatim; Node.js 25.9.0 cannot parse it (no V8 flag enables it reliably) | Use `experimentalDecorators: true` in tsconfig — TypeScript compiles to `__decorate` helpers; rewrite decorator to legacy `(target, key, descriptor)` API |
-
-## MCP Tools (current)
-
-| Tool | Purpose |
-|---|---|
-| `get_folders` | List all mail folders with message counts, unread counts, and IMAP metadata (excludes Proton labels) |
-| `create_folder` | Create a new mail folder under `Folders/` (recursive) |
-| `get_labels` | List all Proton Mail labels with message counts, unread counts, and IMAP metadata |
-| `list_mailbox` | Browse emails in a mailbox, newest first (paginated) |
-| `fetch_summaries` | Envelope data for known UIDs (batch) |
-| `fetch_message` | Text/HTML body + attachment metadata (batch, no content) |
-| `fetch_attachment` | Download one attachment (base64) |
-| `search_mailbox` | IMAP TEXT search with pagination |
-| `move_emails` | Move batch of emails to another mailbox |
-| `mark_read` | Add `\Seen` flag (batch) |
-| `mark_unread` | Remove `\Seen` flag (batch) |
-| `verify_connectivity` | Test IMAP connection to Proton Bridge |
-| `add_labels` | Add Proton Mail labels to a batch of emails (IMAP COPY) |
-| `drain_connections` | Flush all pool connections immediately |
-
-## Verify Setup
-
-```bash
-node dist/index.js --verify \
-  --bridge-username x --bridge-password y         # connectivity check (STDIO mode)
-
-# HTTP mode testing
-node dist/index.js --http \
-  --bridge-username x --bridge-password y \
-  --mcp-auth-token t &
-curl -X POST http://127.0.0.1:3000/mcp            # → 401 (no token)
-npx @modelcontextprotocol/inspector http://127.0.0.1:3000/mcp  # set Authorization header
-
-tail -f ~/.proton-bridge-mcp/audit.jsonl | jq .   # watch audit entries (default path)
-npm run package                                    # build proton-bridge-mcp.mcpb
-```
+## Technical References
+- **IMAP patterns (locking, batching, groupByMailbox, EmailId):** `docs/IMAP.md`
+- **Type hierarchy:** `ARCHITECTURE.md` "Type Hierarchy"
+- **Tool schemas, annotations, examples:** `docs/tools/README.md`
+- **Config precedence & all settings:** `README.md` "Configuration Reference"

@@ -147,7 +147,7 @@ Fetch envelope summaries for a list of known email IDs. Use this when you alread
 
 | Field | Type | Description |
 |---|---|---|
-| `ids` | [`EmailId[]`](#emailid) | Email IDs to fetch (1–50) |
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–50), e.g. `["INBOX:42", "Sent:7"]` |
 
 **Returns:** [`EmailSummary[]`](#emailsummary)
 
@@ -165,7 +165,7 @@ Fetch full message content (text/HTML body + attachment metadata) for a list of 
 
 | Field | Type | Description |
 |---|---|---|
-| `ids` | [`EmailId[]`](#emailid) | Email IDs to fetch (1–20) |
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–20) |
 
 **Returns:** `EmailMessage[]`
 
@@ -201,14 +201,14 @@ Download a single email attachment by its IMAP part ID (obtained from `fetch_mes
 
 | Field | Type | Description |
 |---|---|---|
-| `id` | [`EmailId`](#emailid) | The email containing the attachment |
+| `id` | `string` | Email ID in `"Mailbox:UID"` format, e.g. `"INBOX:42"` |
 | `partId` | `string` | Attachment part ID from `fetch_message` (e.g. `"2"`, `"1.2"`) |
 
 **Returns:** `AttachmentContent`
 
 ```jsonc
 {
-  "emailId": { "uid": 42, "mailbox": "INBOX" },
+  "emailId": "INBOX:42",
   "partId": "2",
   "filename": "report.pdf",        // optional
   "contentType": "application/pdf",
@@ -285,7 +285,7 @@ Move a batch of emails to a target mailbox. Returns per-email results with sourc
 
 | Field | Type | Description |
 |---|---|---|
-| `ids` | [`EmailId[]`](#emailid) | Emails to move (1–50) |
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–50) |
 | `targetMailbox` | `string` | Destination mailbox (e.g. `Archive`, `Trash`, `Folders/Work`) |
 
 **Returns:** `BatchItemResult<MoveResult>[]`
@@ -293,15 +293,15 @@ Move a batch of emails to a target mailbox. Returns per-email results with sourc
 ```jsonc
 [
   {
-    "id": { "uid": 42, "mailbox": "INBOX" },
+    "id": "INBOX:42",
     "data": {
       "fromMailbox": "INBOX",
       "toMailbox": "Archive",
-      "targetId": { "uid": 108, "mailbox": "Archive" }  // new UID, or null if unknown
+      "targetId": "Archive:108"    // new ID, or null if unknown
     }
   },
   {
-    "id": { "uid": 99, "mailbox": "INBOX" },
+    "id": "INBOX:99",
     "error": { "code": "NOT_FOUND", "message": "UID 99 not found in INBOX" }
   }
 ]
@@ -321,14 +321,14 @@ Mark a batch of emails as read by adding the `\Seen` IMAP flag.
 
 | Field | Type | Description |
 |---|---|---|
-| `ids` | [`EmailId[]`](#emailid) | Emails to mark as read (1–50) |
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–50) |
 
 **Returns:** `BatchItemResult<FlagResult>[]`
 
 ```jsonc
 [
   {
-    "id": { "uid": 42, "mailbox": "INBOX" },
+    "id": "INBOX:42",
     "data": {
       "flagsAfter": ["\\Seen", "\\Flagged"]   // full flag set after the operation
     }
@@ -350,7 +350,7 @@ Mark a batch of emails as unread by removing the `\Seen` IMAP flag.
 
 | Field | Type | Description |
 |---|---|---|
-| `ids` | [`EmailId[]`](#emailid) | Emails to mark as unread (1–50) |
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–50) |
 
 **Returns:** `BatchItemResult<FlagResult>[]`
 
@@ -370,7 +370,7 @@ Add one or more Proton Mail labels to a batch of emails. Each email is copied in
 
 | Field | Type | Description |
 |---|---|---|
-| `ids` | [`EmailId[]`](#emailid) | Emails to label (1–50) |
+| `ids` | `string[]` | Email IDs in `"Mailbox:UID"` format (1–50) |
 | `labelNames` | `string[]` | Label names to apply (plain names without `Labels/` prefix, 1+) |
 
 **Returns:** `AddLabelsBatchResult`
@@ -379,20 +379,20 @@ Add one or more Proton Mail labels to a batch of emails. Each email is copied in
 {
   "items": [
     {
-      "id": { "uid": 42, "mailbox": "INBOX" },
+      "id": "INBOX:42",
       "data": [
         {
           "labelPath": "Labels/Important",
-          "newId": { "uid": 7, "mailbox": "Labels/Important" }
+          "newId": "Labels/Important:7"
         },
         {
           "labelPath": "Labels/Work",
-          "newId": { "uid": 12, "mailbox": "Labels/Work" }
+          "newId": "Labels/Work:12"
         }
       ]
     },
     {
-      "id": { "uid": 99, "mailbox": "INBOX" },
+      "id": "INBOX:99",
       "error": { "code": "COPY_FAILED", "message": "UID 99 not found in INBOX" }
     }
   ]
@@ -418,13 +418,17 @@ Test the connection to the Proton Bridge IMAP server. Acquires a connection from
 
 ```jsonc
 {
-  "success": true,
-  "latencyMs": 12          // round-trip time in milliseconds
+  "status": "succeeded",
+  "data": {
+    "latencyMs": 12        // round-trip time in milliseconds
+  }
 }
 // or on failure:
 {
-  "success": false,
-  "error": "Connection refused"
+  "status": "failed",
+  "data": {
+    "error": "Connection refused"
+  }
 }
 ```
 
@@ -443,7 +447,10 @@ Close all connections in the IMAP connection pool immediately. Useful for forcin
 
 ```jsonc
 {
-  "message": "Drained 3 connections"
+  "status": "succeeded",
+  "data": {
+    "message": "Connection pool drained. New connections will be created on next request."
+  }
 }
 ```
 
@@ -453,13 +460,13 @@ Close all connections in the IMAP connection pool immediately. Useful for forcin
 
 ### `EmailId`
 
-Stable identifier for an email. UIDs are unique within a mailbox but not globally.
+Stable identifier for an email. On tool interfaces, represented as a `"Mailbox:UID"` string (e.g. `"INBOX:42"`). Internally stored as `{ uid: number, mailbox: string }` — conversion happens at the tool boundary via `parseEmailId()` (input) and `formatEmailId()` (output).
 
-```typescript
-{
-  uid: number;      // IMAP UID (positive integer)
-  mailbox: string;  // Mailbox path, e.g. "INBOX"
-}
+Mailbox names may contain colons (e.g. `"Folders/My:Project"`); the parser splits on the **last** colon.
+
+```
+"INBOX:42"                        → { uid: 42, mailbox: "INBOX" }
+"Folders/My:Project:123"          → { uid: 123, mailbox: "Folders/My:Project" }
 ```
 
 ### `EmailAddress`
@@ -479,7 +486,7 @@ Envelope metadata for an email (no body content).
 
 ```typescript
 {
-  id: EmailId;
+  id: string;                   // "Mailbox:UID" format, e.g. "INBOX:42"
   messageId?: string;         // RFC 2822 Message-ID
   from: EmailAddress;
   to: EmailAddress[];
@@ -499,7 +506,7 @@ Per-item result for batch operations. Either `data` or `error` is present, never
 
 ```typescript
 {
-  id: EmailId;
+  id: string;                   // "Mailbox:UID" format
   data?: T;                   // present on success
   error?: {
     code: string;             // e.g. "NOT_FOUND", "LOCK_FAILED"

@@ -10,40 +10,59 @@ Instead of per-type serializers, modify `toText()` in `server.ts` to use a `JSON
 
 ## Changes
 
-### `src/types/email.ts` — Add three utility functions
+### `src/types/email.ts` — Add utility functions and shared schema
 
 - `formatEmailId(id: EmailId): string` — returns `${mailbox}:${uid}`
 - `parseEmailId(str: string): EmailId` — splits on LAST colon (handles mailbox names with colons), validates UID is positive integer, throws clear error on malformed input
-- `isEmailId(value: unknown): value is EmailId` — duck-type check: typeof object, has `uid` (number) + `mailbox` (string), exactly 2 keys
+- `isEmailId(value: unknown): value is EmailId` — strict duck-type check: typeof object, not null, exactly 2 keys named `uid` (number) and `mailbox` (string):
+  ```typescript
+  export function isEmailId(value: unknown): value is EmailId {
+    if (typeof value !== 'object' || value === null) return false;
+    const keys = Object.keys(value);
+    return keys.length === 2
+      && 'uid' in value && typeof (value as Record<string, unknown>).uid === 'number'
+      && 'mailbox' in value && typeof (value as Record<string, unknown>).mailbox === 'string';
+  }
+  ```
+- `emailIdStringSchema` — shared Zod schema with `.transform()` for tool input:
+  ```typescript
+  export const emailIdStringSchema = z.string()
+    .min(3)
+    .describe('Email ID in "Mailbox:UID" format (e.g. "INBOX:42")')
+    .transform((str) => parseEmailId(str));
+  ```
+  Zod handles the error path; handlers receive already-parsed `EmailId` objects.
 
 ### `src/server.ts` — Modify `toText()` replacer
 
 ```typescript
 function toText(data: unknown): string {
   return JSON.stringify(data, (_key, value) => {
-    if (isEmailId(value) && Object.keys(value).length === 2) {
-      return formatEmailId(value);
-    }
+    if (isEmailId(value)) return formatEmailId(value);
     return value;
   }, 2);
 }
 ```
 
+`isEmailId` already verifies exactly 2 keys — no redundant check needed.
+
 One change, handles ALL output serialization automatically.
 
 ### Tool handlers accepting EmailId input (7 files)
 
-Change Zod schemas from `emailIdSchema` objects to `z.string().min(1)`. Each handler calls `parseEmailId()`:
+Replace per-file `emailIdSchema` objects with the shared `emailIdStringSchema` (which includes `.transform(parseEmailId)`). Handlers receive already-parsed `EmailId` objects — no manual parsing needed:
 
-| Tool | Change |
-|---|---|
-| `fetch_summaries` | `ids: z.array(z.string().min(1))`, parse in handler |
-| `fetch_message` | Same |
-| `fetch_attachment` | `id: z.string().min(1)`, parse in handler |
-| `move_emails` | `ids: z.array(z.string().min(1))`, parse in handler |
-| `mark_read` | Same |
-| `mark_unread` | Same |
-| `add_labels` | Same |
+| Tool | Schema change | Handler change |
+|---|---|---|
+| `fetch_summaries` | `ids: z.array(emailIdStringSchema)` | `args.ids` is `EmailId[]` — pass directly to `imap` |
+| `fetch_message` | Same | Same |
+| `fetch_attachment` | `id: emailIdStringSchema` | `args.id` is `EmailId` — pass directly |
+| `move_emails` | `ids: z.array(emailIdStringSchema)` | Same |
+| `mark_read` | Same | Same |
+| `mark_unread` | Same | Same |
+| `add_labels` | Same | Same |
+
+**Caveat:** Verify MCP SDK's Zod integration supports `.transform()`. If not, fall back to `z.string().min(3).describe(...)` + manual `parseEmailId()` in each handler.
 
 ### What does NOT change
 
@@ -55,15 +74,15 @@ Change Zod schemas from `emailIdSchema` objects to `z.string().min(1)`. Each han
 
 | File | Change |
 |---|---|
-| `src/types/email.ts` | Add `formatEmailId`, `parseEmailId`, `isEmailId` |
-| `src/server.ts` | Modify `toText()` with replacer |
-| `src/tools/fetch-summaries.ts` | Input: string array + parse |
-| `src/tools/fetch-message.ts` | Input: string array + parse |
-| `src/tools/fetch-attachment.ts` | Input: string + parse |
-| `src/tools/move-emails.ts` | Input: string array + parse |
-| `src/tools/mark-read.ts` | Input: string array + parse |
-| `src/tools/mark-unread.ts` | Input: string array + parse |
-| `src/tools/add-labels.ts` | Input: string array + parse |
+| `src/types/email.ts` | Add `formatEmailId`, `parseEmailId`, `isEmailId`, `emailIdStringSchema` |
+| `src/server.ts` | Modify `toText()` with replacer; import `isEmailId`, `formatEmailId` |
+| `src/tools/fetch-summaries.ts` | Use `emailIdStringSchema`; remove local `emailIdSchema` |
+| `src/tools/fetch-message.ts` | Same |
+| `src/tools/fetch-attachment.ts` | Use `emailIdStringSchema` for single ID |
+| `src/tools/move-emails.ts` | Use `emailIdStringSchema`; remove local `emailIdSchema` |
+| `src/tools/mark-read.ts` | Same |
+| `src/tools/mark-unread.ts` | Same |
+| `src/tools/add-labels.ts` | Same |
 | `CLAUDE.md` | Document string ID format |
 | `ARCHITECTURE.md` | Update type docs |
 | `docs/tools/README.md` | Update input/output examples |
@@ -72,7 +91,7 @@ Change Zod schemas from `emailIdSchema` objects to `z.string().min(1)`. Each han
 
 - **Mailbox with colons:** `"Folders/My:Project:123"` → mailbox `"Folders/My:Project"`, UID `123`
 - **Malformed input:** `"nocolon"` → error. `"INBOX:"` → error. `"INBOX:0"` → error
-- **Duck-typing safety:** `isEmailId` checks type + exactly 2 keys to avoid false matches
+- **Duck-typing safety:** `isEmailId` checks type + exactly 2 keys named `uid` (number) and `mailbox` (string) to avoid false matches against other 2-key objects
 
 ## Smoke Test Scenarios
 
@@ -84,3 +103,5 @@ Change Zod schemas from `emailIdSchema` objects to `z.string().min(1)`. Each han
 6. `add_labels` with string IDs → `id` and `newId` both strings
 7. `"nocolon"` → clear parse error
 8. `"Folders/My:Project:123"` → correctly parsed
+9. `search_mailbox` → IDs in results as `"INBOX:42"` strings
+10. `fetch_message` with `["INBOX:42"]` → works, IDs in response as strings

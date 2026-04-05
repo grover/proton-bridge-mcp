@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ImapClient }         from './bridge/imap.js';
 import type { ImapConnectionPool } from './bridge/pool.js';
+import { isEmailId, formatEmailId } from './types/email.js';
 import {
   getFoldersSchema,         handleGetFolders,
   createFolderSchema,       handleCreateFolder,
@@ -19,7 +20,10 @@ import {
 } from './tools/index.js';
 
 function toText(data: unknown): string {
-  return JSON.stringify(data, null, 2);
+  return JSON.stringify(data, (_key, value) => {
+    if (isEmailId(value)) return formatEmailId(value);
+    return value;
+  }, 2);
 }
 
 const READ_ONLY   = { readOnlyHint: true,  destructiveHint: false } as const;

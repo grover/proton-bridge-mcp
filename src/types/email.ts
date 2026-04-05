@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Stable email identifier.
  * IMAP UIDs are per-mailbox — always carry the mailbox alongside the UID.
@@ -6,6 +8,48 @@ export interface EmailId {
   uid:     number;
   mailbox: string;
 }
+
+/** Format an EmailId as `"Mailbox:UID"` for tool output. */
+export function formatEmailId(id: EmailId): string {
+  return `${id.mailbox}:${id.uid}`;
+}
+
+/**
+ * Parse a `"Mailbox:UID"` string into an EmailId.
+ * Splits on the LAST colon to handle mailbox names containing colons.
+ */
+export function parseEmailId(str: string): EmailId {
+  const lastColon = str.lastIndexOf(':');
+  if (lastColon < 1) throw new Error(`Invalid EmailId "${str}": expected "Mailbox:UID" format`);
+
+  const mailbox = str.slice(0, lastColon);
+  const uidStr = str.slice(lastColon + 1);
+  const uid = Number(uidStr);
+
+  if (!Number.isInteger(uid) || uid < 1) {
+    throw new Error(`Invalid EmailId "${str}": UID must be a positive integer`);
+  }
+
+  return { uid, mailbox };
+}
+
+/** Type guard: true when value is a plain object with exactly `uid` (number) and `mailbox` (string). */
+export function isEmailId(value: unknown): value is EmailId {
+  if (typeof value !== 'object' || value === null) return false;
+  const keys = Object.keys(value);
+  return keys.length === 2
+    && 'uid' in value && typeof (value as Record<string, unknown>).uid === 'number'
+    && 'mailbox' in value && typeof (value as Record<string, unknown>).mailbox === 'string';
+}
+
+/**
+ * Shared Zod schema for EmailId string input on tool interfaces.
+ * Accepts `"Mailbox:UID"` strings and transforms them to EmailId objects.
+ */
+export const emailIdStringSchema = z.string()
+  .min(3)
+  .describe('Email ID in "Mailbox:UID" format (e.g. "INBOX:42")')
+  .transform((str) => parseEmailId(str));
 
 /** RFC 5321 address with optional display name */
 export interface EmailAddress {

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Jest test infrastructure (`jest.config.ts`, `tsconfig.test.json`, ESLint test config)
+- `formatEmailId`, `parseEmailId`, `isEmailId` utilities and `emailIdStringSchema` Zod schema in `src/types/email.ts`
+- Unit tests for EmailId utilities (31 tests)
 - `get_labels` MCP tool — list all Proton Mail labels with message counts, unread counts, and IMAP metadata; complements `get_folders` using a shared `#listMailboxes` helper
 - `add_labels` MCP tool — add one or more Proton Mail labels to a batch of emails via IMAP COPY; returns per-email results including new UIDs in label folders
 - `AddLabelsBatchResult`, `AddLabelsItemData` types in `src/types/operations.ts`
@@ -19,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- All tool inputs accepting EmailId now use `"Mailbox:UID"` string format (e.g. `"INBOX:42"`) instead of `{ uid, mailbox }` objects
+- All tool outputs auto-serialize `EmailId` objects to `"Mailbox:UID"` strings via JSON replacer in `toText()`
 - Simplified the release
 - `get_folders` MCP tool replaces `list_folders` — enriched per-folder metadata (message count, unread count, UID next, listed/subscribed status) via inline STATUS query; filters out Proton labels (`Labels/`), the `Starred` virtual mailbox, and the `Labels` root
 - All tool handlers now return standardized wrapper types with top-level `status` field

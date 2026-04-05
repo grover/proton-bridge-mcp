@@ -93,8 +93,30 @@ export class ImapClient {
   }
 
   @Audited('delete_folder')
-  async deleteFolder(_path: string): Promise<DeleteFolderResult> {
-    throw new Error('Not implemented');
+  async deleteFolder(path: string): Promise<DeleteFolderResult> {
+    const cleaned = path.replace(/\/+$/, '');
+
+    if (!cleaned.startsWith('Folders/') || cleaned === 'Folders/') {
+      throw new Error('FORBIDDEN: can only delete folders under Folders/');
+    }
+
+    const conn = await this.#pool.acquire();
+    try {
+      const mailboxes = await conn.list();
+      const target = mailboxes.find((mb: { path: string }) => mb.path === cleaned);
+
+      if (!target) {
+        throw new Error('NOT_FOUND: folder does not exist');
+      }
+      if ((target as { specialUse?: string }).specialUse) {
+        throw new Error('FORBIDDEN: cannot delete special-use folder');
+      }
+
+      await conn.mailboxDelete(cleaned);
+      return { path: cleaned };
+    } finally {
+      this.#pool.release(conn);
+    }
   }
 
   @Audited('list_mailbox')

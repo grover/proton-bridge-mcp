@@ -92,8 +92,9 @@ export class OperationLogInterceptor {
   }
 
   @Irreversible
-  async deleteFolder(_path: string): Promise<SingleToolResult<DeleteFolderResult>> {
-    throw new Error('Not implemented');
+  async deleteFolder(path: string): Promise<SingleToolResult<DeleteFolderResult>> {
+    const data = await this.#imap.deleteFolder(path);
+    return { status: 'succeeded' as const, data };
   }
 
   // Tracked as noop — reversal requires deleteEmails (separate branch).

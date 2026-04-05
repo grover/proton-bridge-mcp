@@ -7,8 +7,12 @@ export const deleteFolderSchema = {
 };
 
 export async function handleDeleteFolder(
-  _args: { path: string },
-  _ops: MutatingMailOps,
+  args: { path: string },
+  ops: MutatingMailOps,
 ): Promise<SingleToolResult<DeleteFolderResult>> {
-  throw new Error('Not implemented');
+  const cleaned = args.path.replace(/\/+$/, '');
+  if (!cleaned || cleaned === 'Folders' || !cleaned.startsWith('Folders/') || cleaned === 'Folders/') {
+    throw new Error('INVALID_PATH: path must contain a folder name after "Folders/" (e.g. "Folders/MyFolder")');
+  }
+  return ops.deleteFolder(cleaned);
 }

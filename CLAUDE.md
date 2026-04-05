@@ -332,3 +332,4 @@ The MCP SDK supports Zod `.transform()` in `inputSchema`. The JSON Schema conver
 - **Type hierarchy:** `ARCHITECTURE.md` "Type Hierarchy"
 - **Tool schemas, annotations, examples:** `docs/tools/README.md`
 - **Config precedence & all settings:** `README.md` "Configuration Reference"
+- **Operation log, @Tracked, revert_operations:** `docs/impl/operation-log-revert.md`

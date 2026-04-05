@@ -25,11 +25,11 @@ The log resets on process restart. This is deliberate:
 - **Privacy.** The log contains `EmailId` references (mailbox + UID). Persisting these to disk would create a durable record of which emails were touched. In-memory means the data is gone when the process stops.
 - **Correctness after restart.** IMAP UIDs can change after server-side operations (expunge, compaction). A persisted log with stale UIDs would produce incorrect reversals. Starting fresh is safer than risking silent data corruption.
 
-The tradeoff: if the server crashes mid-session, all revert history is lost. This is acceptable because the audit log (`@Audited`) provides a durable record for forensic purposes — the operation log is an ergonomic convenience, not a durability guarantee.
+The tradeoff: if the server crashes mid-session, all revert history is lost. This is acceptable because the [audit log](auditing.md) (`@Audited`) provides a durable record for forensic purposes — the operation log is an ergonomic convenience, not a durability guarantee.
 
 ### Ring buffer with FIFO eviction
 
-The log holds at most 100 entries (`MAX_LOG_SIZE`). When full, the oldest entry is evicted. This bounds memory usage without configuration complexity. The constant is exported from `src/bridge/operation-log.ts` for testability.
+The log holds at most `maxSize` entries (default 100, [configurable](#configuration)). When full, the oldest entry is evicted. This bounds memory usage predictably.
 
 100 was chosen because interactive AI sessions rarely accumulate more than a few dozen mutations before the user reviews results. Operations that fall off the ring buffer are no longer revertible; the agent receives `UNKNOWN_OPERATION_ID` if it tries.
 
@@ -60,7 +60,7 @@ When `revertOperations` executes reversals, it calls `ImapClient` directly — n
 - **Infinite recursion:** A revert creating new log entries that would themselves need reverting.
 - **Log pollution:** Revert operations are transient housekeeping, not user-initiated mutations.
 
-The audit logger (`@Audited` on ImapClient) still captures the underlying IMAP operations, so there is a durable record of what the revert did.
+The [audit logger](auditing.md) (`@Audited` on ImapClient) still captures the underlying IMAP operations, so there is a durable record of what the revert did.
 
 ## Architecture
 
@@ -88,7 +88,7 @@ McpServer (src/server.ts)
 
 **`OperationLog`** (`src/bridge/operation-log.ts`)
 
-A ring buffer holding up to `MAX_LOG_SIZE` (100) `OperationRecord` entries. Each record has a monotonically increasing `id` (never wraps — safe to 2^53), the `tool` name, a `ReversalSpec` describing how to undo the operation, and an ISO 8601 `timestamp`.
+A ring buffer holding up to `maxSize` (default 100, [configurable](#configuration)) `OperationRecord` entries. Each record has a monotonically increasing `id` (never wraps — safe to 2^53), the `tool` name, a `ReversalSpec` describing how to undo the operation, and an ISO 8601 `timestamp`.
 
 | Method | Purpose |
 |---|---|
@@ -114,7 +114,7 @@ The interceptor also owns `revertOperations()`, which retrieves records from the
 | `@Tracked(tool, buildReversal)` | Interceptor methods | `log: OperationLog` | After success: build `ReversalSpec`, push to log, extend result with `operationId`. If `buildReversal` returns `null`, skip tracking. |
 | `@Irreversible` | Future `deleteFolder` | `log: OperationLog` | After success: `log.clear()`. All prior operation IDs become unknown. |
 
-Both use TypeScript's `experimentalDecorators` API, same as the existing `@Audited` decorator on `ImapClient`.
+Both use TypeScript's `experimentalDecorators` API, same as the existing [`@Audited`](auditing.md) decorator on `ImapClient`.
 
 **`ReversalSpec`** (`src/types/operations.ts`)
 
@@ -155,13 +155,13 @@ IMAP `MOVE` and `COPY` commands may return a `COPYUID` response mapping source U
 
 ## Configuration
 
-The operation log has no external configuration. `MAX_LOG_SIZE` is a compile-time constant (100). This is intentional:
+| CLI Flag | Env Var | Default | Description |
+|---|---|---|---|
+| `--operation-log-size` | `PROTONMAIL_OPERATION_LOG_SIZE` | `100` | Max entries in the operation log ring buffer |
 
-- The feature targets interactive AI sessions, not bulk automation.
-- 100 operations is generous for any reasonable session.
-- Making it configurable would add CLI flags and validation for a parameter that almost no one would change.
+Follows the project-wide configuration precedence: **CLI flag > env var > default**. Parsed via the shared `intValue()` helper in `src/config.ts`.
 
-If a future use case requires a larger buffer, change the constant in `src/bridge/operation-log.ts` and update the corresponding test.
+The `OperationLog` constructor receives `maxSize` from `AppConfig.operationLog.maxSize`. The default (100) is generous for interactive AI sessions — most sessions accumulate fewer than a few dozen mutations before the user reviews results. Lower values save memory at the cost of a shorter revert window; higher values extend the window for bulk-automation use cases.
 
 ## Safety and Privacy
 
@@ -169,11 +169,11 @@ If a future use case requires a larger buffer, change the constant in `src/bridg
 
 - **In-memory only.** The log contains `EmailId` references (mailbox path + UID) and operation metadata. This data exists only in process memory and is gone when the server stops.
 - **No email content.** The log stores structural identifiers only — it never captures subjects, bodies, senders, or any PII from the email itself.
-- **Audit log separation.** The JSONL audit log (`@Audited`) is a separate system with its own privacy controls. The operation log does not write to disk.
+- **Audit log separation.** The JSONL [audit log](auditing.md) (`@Audited`) is a separate system with its own privacy controls. The operation log does not write to disk.
 
 ### Safety guardrails
 
-- **Ring buffer bounds memory.** A runaway agent issuing thousands of mutations can't cause unbounded memory growth. The buffer is fixed at 100 entries.
+- **Ring buffer bounds memory.** A runaway agent issuing thousands of mutations can't cause unbounded memory growth. The buffer is capped at `maxSize` entries ([configurable](#configuration), default 100).
 - **Reversals are best-effort, not transactional.** If step 3 of a 5-step revert fails, steps 4 and 5 (which were reverted before step 3 in reverse order) remain reverted. The response clearly reports per-step status so the agent can assess the outcome.
 - **No recursive tracking.** Reversal operations bypass the interceptor entirely, preventing feedback loops where a revert generates new operations that need reverting.
 - **`@Irreversible` as a circuit breaker.** Destructive operations that can't be undone (like deleting a folder) clear the log. This prevents agents from believing they can revert past a destructive boundary.

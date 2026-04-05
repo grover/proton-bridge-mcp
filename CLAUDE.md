@@ -49,6 +49,10 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 - **App logger** (`src/logger.ts`): pino → stderr (default) or `PROTONMAIL_LOG_PATH`
 - **Audit logger** (`src/bridge/audit.ts`): JSONL → `PROTONMAIL_AUDIT_LOG_PATH` (file only, **never stderr**)
 - stderr is reserved for operational/MCP/Fastify output
+- **Interface-based tool handlers:** Tool handlers depend on `ReadOnlyMailOps` / `MutatingMailOps` interfaces, never concrete `ImapClient` or `OperationLogInterceptor`. See `docs/impl/mcp-tool-interfaces.md`.
+- **Small commits:** Commit after each logical unit of work (one file, one feature, one test group). Do not batch unrelated changes.
+- **Deferred work → GitHub issue:** When work is identified but not in scope ("later", "future", "separate task"), immediately file a GitHub issue with context, rationale, and acceptance criteria so the user can schedule it. Never just mention deferred work in passing — always create a trackable issue.
+- **Doc deduplication:** When creating new docs in `docs/`, clean up `CLAUDE.md`, `ARCHITECTURE.md`, and other docs — replace duplicated content with cross-references to the new canonical source.
 
 # Orchestrator Workflow
 
@@ -110,6 +114,7 @@ When working a ticket, you cycle through these personas as the orchestrator:
 - Branch type is bug | feat | refactor -> analyze issue description to determine type
 - Repository uses GitHub flow
 - New branches always taken from latest `main` branch
+- **Isolate independent changes:** Unrelated work (e.g., tooling fixes, doc updates) goes on its own branch from `origin/main`, never mixed into a feature branch.
 
 ## Concurrent agent safety
 
@@ -128,6 +133,7 @@ Assume another agent is working in the same repository at all times.
 4. **Verify branch state after checkout** — `git log --oneline -3` to confirm HEAD is where you expect.
 5. **Keep branches short-lived and narrowly scoped** — reduces collision surface with other agents.
 6. **Don't rewrite history on shared branches without fetching first** — another agent may have pushed since your last fetch.
+7. **No destructive git commands** — never use `git checkout -- .`, `git reset --hard`, `git clean -fd`, or `git push --force`. The user may have in-progress edits. Use `git stash`, `git rebase`, or `git revert` instead.
 
 # Document naming in `docs/plans/`
 
@@ -146,7 +152,7 @@ Assume another agent is working in the same repository at all times.
 
 # Ticket workflow
 
-1. As a **SWE**, you implement empty skeleton (no functionality)
+1. As a **SWE**, you implement empty skeleton — stubs that throw `Error('Not implemented')`, no working logic. Build must pass but all tests must fail (RED).
 2. As a **QE**, you implement unit tests per EDD against skeleton
 3. As a **QE**, you verify that all new tests fail
 4. As a **SWE**, you review tests, then red-green-refactor cycle:

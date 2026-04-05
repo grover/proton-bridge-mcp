@@ -66,7 +66,7 @@ When working a ticket, you cycle through these personas as the orchestrator:
 6. Commits EDD, pushes branch
 7. Spins up ticket workflow
 8. **User smoke tests** - **Orchestrator** show what they're testing, test cases, previously failed tests in status dashboard
-9. Before committing: sync any learnings from memory into `CLAUDE.md` and clear the memory — conventions belong in project docs, not in ephemeral memory.
+9. **MANDATORY before PR:** Sync any learnings from memory into `CLAUDE.md` and clear the memory — conventions belong in project docs, not in ephemeral memory. Do not skip this step.
 10. **Orchestrator** commits, pushes, creates PR
 11. Ensures learnings are written to `CLAUDE.md`, `ARCHITECTURE.md` and `CHANGELOG.md` other files
 11. User requests refactorings / bug fixes / changes at this stage: Create a ticket and start working on that

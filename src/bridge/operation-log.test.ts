@@ -1,4 +1,4 @@
-import { OperationLog, MAX_LOG_SIZE } from './operation-log.js';
+import { OperationLog, DEFAULT_MAX_LOG_SIZE } from './operation-log.js';
 import type { OperationRecord } from '../types/operations.js';
 
 function makeRecord(tool = 'test_tool'): Omit<OperationRecord, 'id'> {
@@ -34,7 +34,7 @@ describe('OperationLog', () => {
   it('has returns false for evicted IDs after 101 pushes', () => {
     const firstId = log.push(makeRecord());
 
-    for (let i = 1; i <= MAX_LOG_SIZE; i++) {
+    for (let i = 1; i <= DEFAULT_MAX_LOG_SIZE; i++) {
       log.push(makeRecord());
     }
 
@@ -98,22 +98,22 @@ describe('OperationLog', () => {
   it('FIFO eviction at 101 entries — size stays at 100, first ID gone', () => {
     const firstId = log.push(makeRecord());
 
-    for (let i = 1; i <= MAX_LOG_SIZE; i++) {
+    for (let i = 1; i <= DEFAULT_MAX_LOG_SIZE; i++) {
       log.push(makeRecord());
     }
 
-    expect(log.size).toBe(MAX_LOG_SIZE);
+    expect(log.size).toBe(DEFAULT_MAX_LOG_SIZE);
     expect(log.has(firstId)).toBe(false);
   });
 
   it('IDs continue incrementing after eviction (101st push returns 101, not 1)', () => {
-    for (let i = 0; i < MAX_LOG_SIZE; i++) {
+    for (let i = 0; i < DEFAULT_MAX_LOG_SIZE; i++) {
       log.push(makeRecord());
     }
 
     const id101 = log.push(makeRecord());
 
-    expect(id101).toBe(MAX_LOG_SIZE + 1);
+    expect(id101).toBe(DEFAULT_MAX_LOG_SIZE + 1);
   });
 
   it('getFrom after remove skips removed records', () => {

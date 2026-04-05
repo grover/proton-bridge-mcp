@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   await pool.start();
 
   const imap        = new ImapClient(pool, audit, logger);
-  const opLog       = new OperationLog();
+  const opLog       = new OperationLog(config.operationLog.maxSize);
   const interceptor = new OperationLogInterceptor(imap, opLog);
 
   const shutdown = async (signal: string): Promise<void> => {

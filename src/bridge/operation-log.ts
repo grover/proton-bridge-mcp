@@ -1,15 +1,20 @@
 import type { OperationRecord } from '../types/operations.js';
 
-export const MAX_LOG_SIZE = 100;
+export const DEFAULT_MAX_LOG_SIZE = 100;
 
 export class OperationLog {
+  readonly #maxSize: number;
   #seq  = 0;
   #ring: OperationRecord[] = [];
+
+  constructor(maxSize: number = DEFAULT_MAX_LOG_SIZE) {
+    this.#maxSize = maxSize;
+  }
 
   push(record: Omit<OperationRecord, 'id'>): number {
     const id = ++this.#seq;
     this.#ring.push({ ...record, id });
-    if (this.#ring.length > MAX_LOG_SIZE) {
+    if (this.#ring.length > this.#maxSize) {
       this.#ring.shift();
     }
     return id;

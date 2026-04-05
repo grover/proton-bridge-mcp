@@ -68,8 +68,10 @@ export interface MoveResult {
 
 /** Result of a flag operation */
 export interface FlagResult {
+  /** Full set of IMAP flags before the operation */
+  flagsBefore: string[];
   /** Full set of IMAP flags after the operation */
-  flagsAfter: string[];
+  flagsAfter:  string[];
 }
 
 /** Result of a single label application to one email */

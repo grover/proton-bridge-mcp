@@ -156,11 +156,28 @@ describe('OperationLogInterceptor', () => {
       expect(log.size).toBe(0);
     });
 
-    it('mixed batch: only tracks emails whose flags actually changed', async () => {
+    it('mixed batch: only tracks emails whose flags actually changed (excludes no-ops)', async () => {
       const ids = [eid(1), eid(2)];
       const items: BatchItemResult<FlagResult>[] = [
         { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },       // changed
         { id: eid(2), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: ['\\Seen'] } }, // no-op
+      ];
+      mock(imap.setFlag).mockResolvedValue(items);
+
+      const result = await interceptor.markRead(ids);
+      const operationId = (result as unknown as Record<string, unknown>).operationId as number;
+      const records = log.getFrom(operationId);
+
+      expect(records).toHaveLength(1);
+      expect(records[0]!.reversal).toEqual({ type: 'mark_read', ids: [eid(1)] });
+    });
+
+    it('three-way mixed batch: changed + no-op + failed — reversal includes only the changed one', async () => {
+      const ids = [eid(1), eid(2), eid(3)];
+      const items: BatchItemResult<FlagResult>[] = [
+        { id: eid(1), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },       // changed
+        { id: eid(2), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: ['\\Seen'] } }, // no-op
+        { id: eid(3), status: 'failed', error: { code: 'IMAP_ERROR', message: 'fail' } },              // failed
       ];
       mock(imap.setFlag).mockResolvedValue(items);
 

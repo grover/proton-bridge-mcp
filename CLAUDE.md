@@ -122,6 +122,24 @@ When working a ticket, you cycle through these personas as the orchestrator:
 - Repository uses GitHub flow
 - New branches always taken from latest `main` branch
 
+## Concurrent agent safety
+
+Assume another agent is working in the same repository at all times.
+
+### Workstream isolation
+- Use `isolation: "worktree"` when delegating to sub-agents — each gets its own git worktree with an isolated copy of the repo, preventing file conflicts with the main working directory and other agents.
+- Each agent works on **its own branch** — never push to another agent's branch.
+- Coordinate only via `main` — rebase from `origin/main`, never from another feature branch.
+- If you encounter unexpected commits or changes on a branch, investigate before overwriting — it may be another agent's work.
+
+### Git discipline
+1. **Fetch before every branch operation** — `git fetch origin` before creating, switching, rebasing, or pushing branches. Never trust local refs; always use `origin/main`, not `main`.
+2. **`--force-with-lease` only** — never `--force`. Lease rejects the push if the remote moved since your last fetch.
+3. **Commit or stash before switching branches** — uncommitted changes carry across checkouts and can silently land on the wrong branch.
+4. **Verify branch state after checkout** — `git log --oneline -3` to confirm HEAD is where you expect.
+5. **Keep branches short-lived and narrowly scoped** — reduces collision surface with other agents.
+6. **Don't rewrite history on shared branches without fetching first** — another agent may have pushed since your last fetch.
+
 # Document naming in `docs/plans/`
 
 - **PRDs:** `prd-{milestone}-{feature}.md` — product requirement documents scoped to a milestone (e.g. `prd-m4-disabled-tools.md`)

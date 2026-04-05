@@ -84,11 +84,14 @@ export interface AddLabelsItemData {
 /** Batch result for add_labels — unified with BatchItemResult */
 export type AddLabelsBatchResult = BatchToolResult<AddLabelsItemData[]>;
 
-/** Result of a folder creation */
-export interface CreateFolderResult {
+/** Result of creating an IMAP mailbox (folder or label) */
+export interface CreateMailboxResult {
   path:    string;
   created: boolean;
 }
+
+/** Result of a folder creation */
+export type CreateFolderResult = CreateMailboxResult;
 
 /** Result of a folder deletion */
 export interface DeleteFolderResult {

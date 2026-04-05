@@ -7,6 +7,7 @@ import type {
   MoveResult,
   FlagResult,
   SingleToolResult,
+  CreateMailboxResult,
   CreateFolderResult,
   DeleteFolderResult,
   AddLabelsBatchResult,
@@ -49,14 +50,15 @@ const buildMarkReadReversal = buildFlagReversal('mark_read', '\\Seen');
 const buildMarkUnreadReversal = buildFlagReversal('mark_unread', '\\Seen');
 
 
-function buildCreateFolderReversal(
-  _args: unknown[],
-  result: unknown,
-): ReversalSpec | null {
-  const r = result as SingleToolResult<CreateFolderResult>;
-  if (!r.data.created) return null; // folder already existed — don't delete on revert
-  return { type: 'create_folder', path: r.data.path };
+function buildCreateMailboxReversal(type: 'create_folder') {
+  return (_args: unknown[], result: unknown): ReversalSpec | null => {
+    const r = result as SingleToolResult<CreateMailboxResult>;
+    if (!r.data.created) return null; // mailbox already existed — don't delete on revert
+    return { type, path: r.data.path };
+  };
 }
+
+const buildCreateFolderReversal = buildCreateMailboxReversal('create_folder');
 
 // buildAddLabelsReversal not yet tracked — requires deleteEmails (see TODO.md).
 

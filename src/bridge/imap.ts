@@ -15,7 +15,9 @@ import type {
   MailboxBase,
   FolderInfo,
   LabelInfo,
+  CreateMailboxResult,
   CreateFolderResult,
+  CreateLabelResult,
   DeleteFolderResult,
   MoveBatchResult,
   FlagBatchResult,
@@ -67,15 +69,11 @@ export class ImapClient {
     }
   }
 
-  @Audited('create_folder')
-  async createFolder(path: string): Promise<CreateFolderResult> {
+  async #createMailbox(path: string): Promise<CreateMailboxResult> {
     const conn = await this.#pool.acquire();
     try {
       const result = await conn.mailboxCreate(path);
-      return {
-        path:    result.path,
-        created: result.created,
-      };
+      return { path: result.path, created: result.created };
     } catch (err: unknown) {
       if (isAlreadyExistsError(err)) {
         return { path, created: false };
@@ -90,6 +88,17 @@ export class ImapClient {
     } finally {
       this.#pool.release(conn);
     }
+  }
+
+  @Audited('create_folder')
+  async createFolder(path: string): Promise<CreateFolderResult> {
+    return this.#createMailbox(path);
+  }
+
+  @Audited('create_label')
+  async createLabel(name: string): Promise<CreateLabelResult> {
+    const result = await this.#createMailbox(`Labels/${name}`);
+    return { name, created: result.created };
   }
 
   @Audited('delete_folder')

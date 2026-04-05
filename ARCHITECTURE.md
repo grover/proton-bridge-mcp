@@ -142,7 +142,9 @@ AttachmentContent   { emailId, partId, filename?, contentType, data (base64), si
 MailboxBase          { name, listed, subscribed, flags: string[], specialUse?, messageCount, unreadCount, uidNext }
 FolderInfo extends MailboxBase  { path, delimiter }
 LabelInfo = MailboxBase
-CreateFolderResult  { path, created }
+CreateMailboxResult  { path, created }
+CreateFolderResult = CreateMailboxResult
+CreateLabelResult   { name, created }
 DeleteFolderResult  { path }
 
 ── Status & Wrapper Types ──

@@ -30,7 +30,7 @@ Tools belong to one of four categories (used by `--disabled-tools` and for annot
 | Category | Annotation | Tools |
 |---|---|---|
 | **read** | `READ_ONLY` | `get_folders`, `get_labels`, `list_mailbox`, `fetch_summaries`, `fetch_message`, `fetch_attachment`, `search_mailbox` |
-| **mutating** | `MUTATING` | `create_folder`, `mark_read`, `mark_unread`, `add_labels` |
+| **mutating** | `MUTATING` | `create_folder`, `create_label`, `mark_read`, `mark_unread`, `add_labels` |
 | **destructive** | `DESTRUCTIVE` | `move_emails`, `delete_folder`, `revert_operations` |
 | **maintenance** | `READ_ONLY` | `verify_connectivity`, `drain_connections` |
 

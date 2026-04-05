@@ -25,6 +25,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
   - [search_mailbox](#search_mailbox)
 - [Write Operations](#write-operations)
   - [create_folder](#create_folder)
+  - [create_label](#create_label)
   - [delete_folder](#delete_folder)
   - [move_emails](#move_emails)
   - [mark_read](#mark_read)
@@ -268,6 +269,35 @@ Create a new mail folder under `Folders/`. Supports nested paths — intermediat
 
 **Error conditions:**
 - `INVALID_PATH` — path does not start with `"Folders/"`, is bare `"Folders/"`, or is empty after stripping trailing slashes
+- IMAP failure -> top-level thrown error
+
+---
+
+### `create_label`
+
+Create a new Proton Mail label. Labels are flat — names must not contain path separators. If the label already exists, returns `created: false` without error.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Label name (plain text, no `"/"` allowed). Example: `"Important"` |
+
+**Returns:** `CreateLabelResult`
+
+```jsonc
+{
+  "name": "Important",   // Plain label name (matches add_labels input format)
+  "created": true        // true = newly created; false = already existed
+}
+```
+
+**Error conditions:**
+- `INVALID_NAME` — name contains `"/"`
 - IMAP failure -> top-level thrown error
 
 ---

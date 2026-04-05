@@ -7,7 +7,9 @@ import type {
   MoveResult,
   FlagResult,
   SingleToolResult,
+  CreateMailboxResult,
   CreateFolderResult,
+  CreateLabelResult,
   DeleteFolderResult,
   AddLabelsBatchResult,
   ReversalSpec,
@@ -49,14 +51,15 @@ const buildMarkReadReversal = buildFlagReversal('mark_read', '\\Seen');
 const buildMarkUnreadReversal = buildFlagReversal('mark_unread', '\\Seen');
 
 
-function buildCreateFolderReversal(
-  _args: unknown[],
-  result: unknown,
-): ReversalSpec | null {
-  const r = result as SingleToolResult<CreateFolderResult>;
-  if (!r.data.created) return null; // folder already existed — don't delete on revert
-  return { type: 'create_folder', path: r.data.path };
+function buildCreateMailboxReversal(type: 'create_folder') {
+  return (_args: unknown[], result: unknown): ReversalSpec | null => {
+    const r = result as SingleToolResult<CreateMailboxResult>;
+    if (!r.data.created) return null; // mailbox already existed — don't delete on revert
+    return { type, path: r.data.path };
+  };
 }
+
+const buildCreateFolderReversal = buildCreateMailboxReversal('create_folder');
 
 // buildAddLabelsReversal not yet tracked — requires deleteEmails (see TODO.md).
 
@@ -94,6 +97,14 @@ export class OperationLogInterceptor {
   @Tracked('create_folder', buildCreateFolderReversal)
   async createFolder(path: string): Promise<SingleToolResult<CreateFolderResult>> {
     const data = await this.#imap.createFolder(path);
+    return { status: 'succeeded' as const, data };
+  }
+
+  // Tracked as noop — reversal requires deleteLabel (existing GitHub issue).
+  // buildReversal returns null → @Tracked records { type: 'noop' }.
+  @Tracked('create_label', () => null)
+  async createLabel(name: string): Promise<SingleToolResult<CreateLabelResult>> {
+    const data = await this.#imap.createLabel(name);
     return { status: 'succeeded' as const, data };
   }
 

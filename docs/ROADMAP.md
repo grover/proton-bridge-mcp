@@ -69,6 +69,7 @@ See [M3 PRD](plans/m3-folders-labels-revert.md) for full tool specifications, im
 * `remove_labels` — bulk remove emails from label folders
 * `revert_operations` — undo tool with `OperationLog` ring buffer
 * `@Tracked` / `@Irreversible` decorators
+* Add `openWorldHint` annotations to all tools ([#42](https://github.com/grover/proton-bridge-mcp/issues/42))
 
 ### M4 [FUTURE]
 

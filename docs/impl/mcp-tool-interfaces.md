@@ -89,7 +89,7 @@ The `partial` status is critical for LLM consumption: it tells the agent that so
 
 ## Tool Annotation Classification
 
-Every tool declares `annotations` with two boolean hints. Three presets are defined in `src/server.ts`:
+Every tool declares `annotations` with boolean hints for mutability, destructiveness, and open-world classification. Three presets are defined in `src/server.ts`:
 
 ```typescript
 const READ_ONLY   = { readOnlyHint: true,  destructiveHint: false };
@@ -97,7 +97,7 @@ const MUTATING    = { readOnlyHint: false, destructiveHint: false };
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true  };
 ```
 
-### Classification Rationale
+### Mutability Classification
 
 **READ_ONLY** — The tool does not modify any state. Safe to call at any time without side effects. The LLM can call these tools freely for information gathering.
 
@@ -105,12 +105,32 @@ const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true  };
 
 **DESTRUCTIVE** — The tool modifies state in a way that may be **irreversible** or has significant side effects. Examples: moving emails (source UID is invalidated, new UID may be unknown), draining connections (drops active pool state), reverting operations (applies cascading reverse changes). The LLM should exercise extra caution and clearly confirm with the user.
 
-### Guidelines for Classifying New Tools
+### Mutability Guidelines for New Tools
 
 1. If it only reads data → `READ_ONLY`
 2. If it changes state but can be cleanly undone → `MUTATING`
 3. If it changes state and may be hard or impossible to undo, or has cascading effects → `DESTRUCTIVE`
 4. **When in doubt, prefer DESTRUCTIVE** — it's safer for the LLM to treat an operation as destructive than to underestimate risk
+
+### Open World Classification
+
+`openWorldHint` indicates whether a tool interacts with external entities beyond a controlled, closed domain. MCP clients use this to apply appropriate trust boundaries — for example, scrutinizing tool output for untrusted content or flagging trust boundary crossings to the user.
+
+This MCP server bridges ProtonMail via Proton Bridge. **Email originates from the outside world** — every message, subject line, and attachment is user-generated content from external senders. This makes most tools open-world by nature: their responses carry data that could contain prompt injection, malicious content, or other untrusted input.
+
+**`openWorldHint: true`** — Tools that return, process, or operate on data originating from external senders. This includes all tools that touch email content, metadata, or mailbox structures influenced by external email:
+- All read tools (get_folders, list_mailbox, fetch_summaries, fetch_message, fetch_attachment, search_mailbox, get_labels)
+- All mutation tools that operate on externally-sourced emails (move_emails, mark_read, mark_unread, add_labels, create_folder, revert_operations)
+
+**`openWorldHint: false`** — Tools that operate purely locally with no external data in their responses:
+- `verify_connectivity` — tests the local IMAP hop only, returns latency or error string
+- `drain_connections` — local connection pool management, returns a status message
+
+### Open World Guidelines for New Tools
+
+1. If the tool's response contains or references email content, headers, addresses, or mailbox names → `openWorldHint: true`
+2. If the tool operates exclusively on local daemon/pool state with no external data in the response → `openWorldHint: false`
+3. **When in doubt, use `true`** — it's the MCP default, and the safer choice for an email system
 
 ## Operations Interfaces
 
@@ -308,7 +328,8 @@ When adding a new MCP tool:
 
 - [ ] **Choose the correct result type** (List/Single/Batch) based on operation semantics — see the table in "Result Type System"
 - [ ] **Define a Zod schema** with `.describe()` on each field — these are the LLM's documentation
-- [ ] **Choose the correct annotation** (READ_ONLY/MUTATING/DESTRUCTIVE) using the classification rationale above
+- [ ] **Choose the correct annotation** (READ_ONLY/MUTATING/DESTRUCTIVE) using the mutability classification above
+- [ ] **Set `openWorldHint`** — `true` if the tool touches email data, `false` only for purely local operations (see open world guidelines)
 - [ ] **Add the handler to the correct ops interface** — `ReadOnlyMailOps` for reads, `MutatingMailOps` for mutations
 - [ ] **Implement the handler** following the appropriate pattern from "Tool Handler Patterns"
 - [ ] **Register in `createMcpServer()`** with description, schema, annotation, and handler

@@ -5,7 +5,6 @@
 
 ## Features
 - [ ] Idempotency hints on tool annotations
-- [ ] openWorld hints on tool annotations
 
 ## Security
 - [ ] Security review per https://github.com/anthropics/claude-code-security-review

@@ -144,7 +144,7 @@ FolderInfo extends MailboxBase  { path, delimiter }
 LabelInfo = MailboxBase
 CreateMailboxResult  { path, created }
 CreateFolderResult = CreateMailboxResult
-CreateLabelResult  = CreateMailboxResult
+CreateLabelResult   { name, created }
 DeleteFolderResult  { path }
 
 ── Status & Wrapper Types ──

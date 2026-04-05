@@ -28,9 +28,9 @@ Refactor `create_folder`'s IMAP logic into a shared `#createMailbox(path)` helpe
 
 ### New feature
 
-4. **`src/types/operations.ts`** — Add `CreateLabelResult = CreateMailboxResult`
+4. **`src/types/operations.ts`** — Add `CreateLabelResult { name, created }` (own interface, not alias — see Deviations)
 5. **`src/types/mail-ops.ts`** — Add `createLabel(name)` to `MutatingMailOps`
-6. **`src/bridge/imap.ts`** — Add `createLabel(name)` one-liner delegating to `#createMailbox('Labels/' + name)`
+6. **`src/bridge/imap.ts`** — Add `createLabel(name)` delegating to `#createMailbox`, maps `path` to `name`
 7. **`src/bridge/operation-log-interceptor.ts`** — Add `@Tracked('create_label', () => null)` wrapper (noop reversal)
 8. **`src/tools/create-label.ts`** — New handler: validates no `/` in name, delegates to `ops.createLabel()`
 9. **`src/tools/index.ts`** — Export
@@ -54,6 +54,10 @@ Refactor `create_folder`'s IMAP logic into a shared `#createMailbox(path)` helpe
 - `deleteFolder` / `deleteLabel` — out of scope
 - `ReversalSpec` — no new variant (noop)
 - `#executeReversal` — no new case
+
+## Deviations
+
+Originally `CreateLabelResult` was an alias for `CreateMailboxResult` (returning `path`). Changed during smoke testing to return `name` instead of `path` to prevent LLMs from passing `"Labels/X"` to label tools that expect plain names. `CreateLabelResult` is now its own interface `{ name, created }`. The mapping from `CreateMailboxResult.path` to `name` happens in `ImapClient.createLabel`.
 
 ## Edge Cases
 

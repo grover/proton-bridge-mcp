@@ -277,7 +277,7 @@ describe('OperationLogInterceptor', () => {
 
   describe('createLabel', () => {
     it('delegates to imap.createLabel and returns name (not path) with operationId', async () => {
-      mock(imap.createLabel).mockResolvedValue({ path: 'Labels/Important', created: true });
+      mock(imap.createLabel).mockResolvedValue({ name: 'Important', created: true });
 
       const result = await interceptor.createLabel('Important');
 
@@ -289,7 +289,7 @@ describe('OperationLogInterceptor', () => {
     });
 
     it('records noop reversal (deleteLabel not yet implemented)', async () => {
-      mock(imap.createLabel).mockResolvedValue({ path: 'Labels/Important', created: true });
+      mock(imap.createLabel).mockResolvedValue({ name: 'Important', created: true });
 
       await interceptor.createLabel('Important');
 

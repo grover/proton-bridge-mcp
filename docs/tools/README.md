@@ -291,8 +291,8 @@ Create a new Proton Mail label. Labels are flat — names must not contain path 
 
 ```jsonc
 {
-  "path": "Labels/Important",   // Full IMAP path of the label
-  "created": true               // true = newly created; false = already existed
+  "name": "Important",   // Plain label name (matches add_labels input format)
+  "created": true        // true = newly created; false = already existed
 }
 ```
 

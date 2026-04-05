@@ -57,7 +57,7 @@ describe('ImapClient.createLabel', () => {
 
     const result = await client.createLabel('Important');
 
-    expect(result).toEqual({ path: 'Labels/Important', created: true });
+    expect(result).toEqual({ name: 'Important', created: true });
     expect(conn.mailboxCreate).toHaveBeenCalledWith('Labels/Important');
     expect(conn.list).not.toHaveBeenCalled();
   });
@@ -70,7 +70,7 @@ describe('ImapClient.createLabel', () => {
 
     const result = await client.createLabel('Existing');
 
-    expect(result).toEqual({ path: 'Labels/Existing', created: false });
+    expect(result).toEqual({ name: 'Existing', created: false });
     expect(conn.list).not.toHaveBeenCalled();
   });
 
@@ -83,7 +83,7 @@ describe('ImapClient.createLabel', () => {
 
     const result = await client.createLabel('Existing');
 
-    expect(result).toEqual({ path: 'Labels/Existing', created: false });
+    expect(result).toEqual({ name: 'Existing', created: false });
     expect(conn.list).toHaveBeenCalled();
   });
 

@@ -65,7 +65,7 @@ When working a ticket, you cycle through these personas as the orchestrator:
 5. Spins up EDD workflow
 6. Commits EDD, pushes branch
 7. Spins up ticket workflow
-8. **User smoke tests** - **Orchestrator** show what they're testing, test cases, previously failed tests in status dashboard. After smoke tests pass, **stop** — complete step 9 before continuing to step 10.
+8. **Orchestrator** must ask the **User** to smoke test. Do not skip this step. **Orchestrator** can only continue after **User** confirmed the changes. Inform **User** of: summary of changes, test cases, previously related failed tests (if any).
 9. Sync any learnings from memory into `CLAUDE.md` and clear the memory — conventions belong in project docs, not in ephemeral memory.
 10. **Orchestrator** commits, pushes, creates PR
 11. Ensures learnings are written to `CLAUDE.md`, `ARCHITECTURE.md` and `CHANGELOG.md` other files

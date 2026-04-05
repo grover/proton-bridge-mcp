@@ -483,5 +483,243 @@ describe('OperationLogInterceptor', () => {
     });
   });
 
+  // ── UID rewriting during chain revert ─────────────────────────────────���────
+
+  describe('UID rewriting during chain revert', () => {
+    it('mark_read → move → revert rewrites flag reversal UIDs', async () => {
+      // Op1: mark_read on INBOX:42
+      const flagItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(flagItems);
+      const r1 = await interceptor.markRead([eid(42)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move INBOX:42 → Archive (gets Archive:101)
+      const moveItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(101, 'Archive') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems);
+      await interceptor.moveEmails([eid(42)], 'Archive');
+
+      // Reset mocks for revert phase
+      // Move reversal: Archive:101 → INBOX gets new UID INBOX:55
+      const moveRevertItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(101, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: eid(55) } },
+      ];
+      mock(imap.moveEmails).mockReset().mockResolvedValueOnce(moveRevertItems);
+      mock(imap.setFlag).mockReset().mockResolvedValueOnce([]);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      expect(revertResult.stepsSucceeded).toBe(2);
+      // Flag reversal must use INBOX:55 (rewritten), not INBOX:42 (stale)
+      expect(imap.setFlag).toHaveBeenCalledWith([eid(55)], '\\Seen', false);
+    });
+
+    it('mark_unread → move → revert rewrites UIDs', async () => {
+      // Op1: mark_unread on INBOX:42
+      const flagItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: [] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(flagItems);
+      const r1 = await interceptor.markUnread([eid(42)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move INBOX:42 → Archive (gets Archive:101)
+      const moveItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(101, 'Archive') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems);
+      await interceptor.moveEmails([eid(42)], 'Archive');
+
+      // Move reversal: Archive:101 → INBOX gets INBOX:55
+      const moveRevertItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(101, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: eid(55) } },
+      ];
+      mock(imap.moveEmails).mockReset().mockResolvedValueOnce(moveRevertItems);
+      mock(imap.setFlag).mockReset().mockResolvedValueOnce([]);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      expect(revertResult.stepsSucceeded).toBe(2);
+      // Flag reversal must use INBOX:55 and add \Seen (reverse of mark_unread)
+      expect(imap.setFlag).toHaveBeenCalledWith([eid(55)], '\\Seen', true);
+    });
+
+    it('multiple emails: both marked read, both moved, revert rewrites both', async () => {
+      // Op1: mark_read on INBOX:42 and INBOX:43
+      const flagItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+        { id: eid(43), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(flagItems);
+      const r1 = await interceptor.markRead([eid(42), eid(43)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move both to Archive
+      const moveItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(101, 'Archive') } },
+        { id: eid(43), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(102, 'Archive') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems);
+      await interceptor.moveEmails([eid(42), eid(43)], 'Archive');
+
+      // Move reversal returns new UIDs
+      const moveRevertItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(101, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: eid(55) } },
+        { id: eid(102, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: eid(56) } },
+      ];
+      mock(imap.moveEmails).mockReset().mockResolvedValueOnce(moveRevertItems);
+      mock(imap.setFlag).mockReset().mockResolvedValueOnce([]);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      expect(revertResult.stepsSucceeded).toBe(2);
+      expect(imap.setFlag).toHaveBeenCalledWith([eid(55), eid(56)], '\\Seen', false);
+    });
+
+    it('partial COPYUID: one gets new UID, other has targetId undefined', async () => {
+      // Op1: mark_read on INBOX:42 and INBOX:43
+      const flagItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+        { id: eid(43), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(flagItems);
+      const r1 = await interceptor.markRead([eid(42), eid(43)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move both — only INBOX:42 gets a targetId
+      const moveItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(101, 'Archive') } },
+        { id: eid(43), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(102, 'Archive') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems);
+      await interceptor.moveEmails([eid(42), eid(43)], 'Archive');
+
+      // Move reversal: first gets new UID, second has no COPYUID
+      const moveRevertItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(101, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: eid(55) } },
+        { id: eid(102, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: undefined } },
+      ];
+      mock(imap.moveEmails).mockReset().mockResolvedValueOnce(moveRevertItems);
+      mock(imap.setFlag).mockReset().mockResolvedValueOnce([]);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      expect(revertResult.stepsSucceeded).toBe(2);
+      // First rewritten to INBOX:55, second keeps original INBOX:43
+      expect(imap.setFlag).toHaveBeenCalledWith([eid(55), eid(43)], '\\Seen', false);
+    });
+
+    it('move reversal fails → no rewrite of remaining specs', async () => {
+      // Op1: mark_read on INBOX:42
+      const flagItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(flagItems);
+      const r1 = await interceptor.markRead([eid(42)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move INBOX:42 → Archive
+      const moveItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(101, 'Archive') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems);
+      await interceptor.moveEmails([eid(42)], 'Archive');
+
+      // Move reversal throws
+      mock(imap.moveEmails).mockReset().mockRejectedValueOnce(new Error('IMAP_ERROR'));
+      mock(imap.setFlag).mockReset().mockResolvedValueOnce([]);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      expect(revertResult.stepsFailed).toBe(1);   // move reversal failed
+      expect(revertResult.stepsSucceeded).toBe(1); // flag reversal still attempted
+      // Flag reversal uses original (stale) UID — best-effort, no rewriting happened
+      expect(imap.setFlag).toHaveBeenCalledWith([eid(42)], '\\Seen', false);
+    });
+
+    it('noop spec unaffected by UID rewriting', async () => {
+      // Op1: mark_read on already-read email (noop reversal)
+      const noopItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: ['\\Seen'], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(noopItems);
+      const r1 = await interceptor.markRead([eid(42)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move INBOX:42 → Archive
+      const moveItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Archive', targetId: eid(101, 'Archive') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems);
+      await interceptor.moveEmails([eid(42)], 'Archive');
+
+      // Move reversal returns new UID
+      const moveRevertItems: BatchItemResult<MoveResult>[] = [
+        { id: eid(101, 'Archive'), status: 'succeeded', data: { fromMailbox: 'Archive', toMailbox: 'INBOX', targetId: eid(55) } },
+      ];
+      mock(imap.moveEmails).mockReset().mockResolvedValueOnce(moveRevertItems);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      // Both succeed — noop is harmless, no crash from rewriting
+      expect(revertResult.stepsSucceeded).toBe(2);
+      expect(revertResult.stepsFailed).toBe(0);
+    });
+
+    it('cascading moves: move A→B then B→C → revert rewrites progressively', async () => {
+      // Op1: mark_read on INBOX:42
+      const flagItems: BatchItemResult<FlagResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { flagsBefore: [], flagsAfter: ['\\Seen'] } },
+      ];
+      mock(imap.setFlag).mockResolvedValueOnce(flagItems);
+      const r1 = await interceptor.markRead([eid(42)]);
+      const opId1 = (r1 as unknown as Record<string, unknown>).operationId as number;
+
+      // Op2: move INBOX:42 → Folder-A (gets Folder-A:101)
+      const moveItems1: BatchItemResult<MoveResult>[] = [
+        { id: eid(42), status: 'succeeded', data: { fromMailbox: 'INBOX', toMailbox: 'Folder-A', targetId: eid(101, 'Folder-A') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems1);
+      await interceptor.moveEmails([eid(42)], 'Folder-A');
+
+      // Op3: move Folder-A:101 → Folder-B (gets Folder-B:201)
+      const moveItems2: BatchItemResult<MoveResult>[] = [
+        { id: eid(101, 'Folder-A'), status: 'succeeded', data: { fromMailbox: 'Folder-A', toMailbox: 'Folder-B', targetId: eid(201, 'Folder-B') } },
+      ];
+      mock(imap.moveEmails).mockResolvedValueOnce(moveItems2);
+      await interceptor.moveEmails([eid(101, 'Folder-A')], 'Folder-B');
+
+      // Reset mocks for revert phase (reverse order: op3, op2, op1)
+      mock(imap.moveEmails).mockReset();
+      mock(imap.setFlag).mockReset();
+
+      // Revert op3: Folder-B:201 → Folder-A gets Folder-A:301
+      const revertMove3: BatchItemResult<MoveResult>[] = [
+        { id: eid(201, 'Folder-B'), status: 'succeeded', data: { fromMailbox: 'Folder-B', toMailbox: 'Folder-A', targetId: eid(301, 'Folder-A') } },
+      ];
+      // Revert op2: should use Folder-A:301 (rewritten from Folder-A:101) → INBOX gets INBOX:55
+      const revertMove2: BatchItemResult<MoveResult>[] = [
+        { id: eid(301, 'Folder-A'), status: 'succeeded', data: { fromMailbox: 'Folder-A', toMailbox: 'INBOX', targetId: eid(55) } },
+      ];
+      mock(imap.moveEmails)
+        .mockResolvedValueOnce(revertMove3)
+        .mockResolvedValueOnce(revertMove2);
+      mock(imap.setFlag).mockResolvedValueOnce([]);
+
+      const revertResult = await interceptor.revertOperations(opId1);
+
+      expect(revertResult.stepsSucceeded).toBe(3);
+
+      // Verify op2 reversal used rewritten UID (Folder-A:301, not Folder-A:101)
+      expect(imap.moveEmails).toHaveBeenNthCalledWith(2, [eid(301, 'Folder-A')], 'INBOX');
+
+      // Verify flag reversal used final rewritten UID (INBOX:55, not INBOX:42)
+      expect(imap.setFlag).toHaveBeenCalledWith([eid(55)], '\\Seen', false);
+    });
+  });
+
 });
 

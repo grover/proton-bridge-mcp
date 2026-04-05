@@ -186,7 +186,7 @@ An EDD defines **how** to implement a specific issue. It is code-centric — sho
 
 ### Maintaining EDDs
 
-EDDs are living documents. When refactoring changes the implementation, always propose updating the EDD. **Preserve historical context** — describe deviations from the original design rather than overwriting it. Use a "Deviations" subsection or inline notes (e.g. "Originally X, changed to Y because Z") so the rationale trail is not lost.
+EDDs are living documents. When implementation changes the design, **fix the EDD** — stale content is a bug, not history. For significant deviations, add a "Deviations" subsection noting what changed and why, but always correct the technical details (types, method signatures, decorator names) to match the actual implementation. A developer reading an EDD should be able to trust its technical content without cross-referencing the source code.
 
 # EDD workflow
 

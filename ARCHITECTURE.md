@@ -2,7 +2,7 @@
 
 ## Overview
 
-proton-bridge-mcp is an MCP server that bridges ProtonMail to AI agents via the local Proton Bridge IMAP daemon. It exposes 18 tools for reading, searching, and organizing email through the Model Context Protocol. Three transport modes are supported: STDIO (default), HTTP, and HTTPS.
+proton-bridge-mcp is an MCP server that bridges ProtonMail to AI agents via the local Proton Bridge IMAP daemon. It exposes 19 tools for reading, searching, and organizing email through the Model Context Protocol. Three transport modes are supported: STDIO (default), HTTP, and HTTPS.
 
 ## Startup Flow
 
@@ -184,7 +184,7 @@ MutatingMailOps      interface for mutating tool handlers (moveEmails, markRead,
 
 ## Tool Inventory
 
-See [docs/tools/README.md](docs/tools/README.md) for the complete tool reference (schemas, annotations, examples). The server registers 16 tools in `src/server.ts`.
+See [docs/tools/README.md](docs/tools/README.md) for the complete tool reference (schemas, annotations, examples). The server registers 19 tools in `src/server.ts`.
 
 ## Batch Contract
 

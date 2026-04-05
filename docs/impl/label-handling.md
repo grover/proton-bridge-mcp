@@ -24,26 +24,7 @@ This MCP server strips away the IMAP folder abstraction and presents labels as w
 | `create_label` | `name: "Work"` | `{ name, created }` | ImapClient constructs `Labels/Work` internally, calls `mailboxCreate`, maps result back to `{ name }`. |
 | `delete_label` | `name: "Work"` | `{ name, deleted }` | ImapClient constructs `Labels/Work` internally, calls `mailboxDelete`, maps result back to `{ name }`. |
 | `remove_labels` | `labelNames: ["Work"]` | `{ labelName, removed }` | Uses Message-ID search to find copies in label folders. Returns plain `labelName`, not IMAP path. |
-| `add_labels` | `labelNames: ["Work"]` | `{ labelPath, newId }` | **Violates the rule.** See [issue #54](https://github.com/grover/proton-bridge-mcp/issues/54). |
-
-### Negative example: `add_labels` (issue [#54](https://github.com/grover/proton-bridge-mcp/issues/54))
-
-`add_labels` currently returns:
-```json
-{
-  "items": [{
-    "id": "INBOX:42",
-    "data": [{ "labelPath": "Labels/Important", "newId": "Labels/Important:7" }]
-  }]
-}
-```
-
-Both `labelPath` and `newId` are virtualized IMAP artifacts. An LLM seeing `"Labels/Important:7"` may:
-- Pass it to `fetch_message` — fetching the copy instead of the original
-- Pass it to `move_emails` — moving the copy, not the real message
-- Pass `"Labels/Important"` where a plain `"Important"` is expected
-
-The fix (tracked in #54): return `{ labelName: "Important", applied: true }` — matching the input format and hiding the internal copy UID. The copy UID is still captured in the operation log for `revert_operations`, but never shown to the LLM.
+| `add_labels` | `labelNames: ["Work"]` | `{ labelName, applied }` | Returns plain label name and success flag. Fixed in #54. |
 
 ## Finding the true message
 
@@ -93,4 +74,5 @@ The internal `*MailboxResult` types carry the IMAP path for shared helpers (`#cr
 
 - [Operation log and revert](operation-log-revert.md) — how `@Tracked` captures copy UIDs for reversal
 - [MCP tool interfaces](mcp-tool-interfaces.md) — `ReadOnlyMailOps` / `MutatingMailOps` segregation
-- [Issue #54](https://github.com/grover/proton-bridge-mcp/issues/54) — `add_labels` path leakage bug
+- [Email Identity](email-identity.md) — UID handling across IMAP, Proton Bridge, and MCP Server
+- [Issue #54](https://github.com/grover/proton-bridge-mcp/issues/54) — `add_labels` path leakage bug (fixed)

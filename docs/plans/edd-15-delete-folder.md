@@ -9,7 +9,7 @@ Add a `delete_folder` MCP tool that deletes user-defined folders under `Folders/
 
 ## Approach
 
-Follow the existing `createFolder` pattern across all layers (types, IMAP client, interceptor, tool handler, server registration). Use the existing `@Irreversible` decorator (GoF Decorator pattern) instead of `@Tracked` — it clears the log on success and does not attach an `operationId` to the result.
+Follow the existing `createFolder` pattern across all layers (types, IMAP client, interceptor, tool handler, server registration). Use `@IrreversibleWhen(predicate)` instead of `@Tracked` — it conditionally clears the log on success (only when `deleted: true`) and does not attach an `operationId` to the result.
 
 ## Alternatives Considered
 
@@ -28,7 +28,7 @@ MCP Client
   ▼
 McpServer (src/server.ts)
   │
-  └── delete_folder (DESTRUCTIVE) ──► OperationLogInterceptor (@Irreversible)
+  └── delete_folder (DESTRUCTIVE) ──► OperationLogInterceptor (@IrreversibleWhen)
                                            │
                                            │ log.clear() on success
                                            │
@@ -51,7 +51,7 @@ export interface DeleteFolderResult {
 }
 ```
 
-No changes to `ReversalSpec` — `@Irreversible` does not record reversals.
+No changes to `ReversalSpec` — `@IrreversibleWhen` does not record reversals.
 
 ### 2. `src/types/mail-ops.ts` — Extend `MutatingMailOps`
 
@@ -102,12 +102,12 @@ async deleteFolder(path: string): Promise<DeleteFolderResult> {
 
 ### 4. `src/bridge/operation-log-interceptor.ts` — Add `deleteFolder`
 
-Add `Irreversible` to import from `./decorators.js`. Add `DeleteFolderResult` to type imports.
+Add `IrreversibleWhen` to import from `./decorators.js`. Add `DeleteFolderResult` to type imports.
 
 After `createFolder` (line 91):
 
 ```typescript
-@Irreversible
+@IrreversibleWhen((result) => (result as SingleToolResult<DeleteFolderResult>).data.deleted)
 async deleteFolder(path: string): Promise<SingleToolResult<DeleteFolderResult>> {
   const data = await this.#imap.deleteFolder(path);
   return { status: 'succeeded' as const, data };
@@ -168,15 +168,15 @@ server.registerTool(
 | `src/types/operations.ts` | Add `DeleteFolderResult` interface |
 | `src/types/mail-ops.ts` | Add `deleteFolder` to `MutatingMailOps` |
 | `src/bridge/imap.ts` | Add `deleteFolder` method with `@Audited` |
-| `src/bridge/operation-log-interceptor.ts` | Add `deleteFolder` with `@Irreversible` |
+| `src/bridge/operation-log-interceptor.ts` | Add `deleteFolder` with `@IrreversibleWhen` |
 | `src/tools/delete-folder.ts` | New: schema + handler |
 | `src/tools/index.ts` | Add export |
 | `src/server.ts` | Register tool (DESTRUCTIVE) |
 
 ## What Does NOT Change
 
-- `ReversalSpec` union — `@Irreversible` doesn't record reversals
-- `@Irreversible` decorator — already exists and works correctly
+- `ReversalSpec` union — `@IrreversibleWhen` doesn't record reversals
+- `@IrreversibleWhen` decorator — conditional log clearing based on result
 - Operation log ring buffer internals
 
 ## Deviation: `createFolder` reversal now enabled

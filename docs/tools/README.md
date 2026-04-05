@@ -26,6 +26,7 @@ All batch operations preserve input order — `result[i]` always corresponds to 
 - [Write Operations](#write-operations)
   - [create_folder](#create_folder)
   - [create_label](#create_label)
+  - [delete_label](#delete_label)
   - [delete_folder](#delete_folder)
   - [move_emails](#move_emails)
   - [mark_read](#mark_read)
@@ -298,6 +299,38 @@ Create a new Proton Mail label. Labels are flat — names must not contain path 
 
 **Error conditions:**
 - `INVALID_NAME` — name contains `"/"`
+- IMAP failure -> top-level thrown error
+
+---
+
+### `delete_label`
+
+Delete a Proton Mail label. The underlying emails remain in their original folders — only the label view is removed. **Warning:** this operation clears the operation history — no prior operations can be reverted after calling `delete_label`.
+
+| | |
+|---|---|
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` |
+
+> **Destructive & Irreversible:** Deleting a label clears the entire operation log. No prior operations can be reverted afterward.
+
+**Input:**
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Label name to delete (plain text, no `"/"` allowed). Example: `"Project X"` |
+
+**Returns:** `DeleteLabelResult`
+
+```jsonc
+{
+  "name": "Project X",  // Name of the label
+  "deleted": true       // true = deleted; false = label didn't exist (idempotent)
+}
+```
+
+**Error conditions:**
+- `INVALID_NAME` — name contains `"/"`
+- `FORBIDDEN` — label has `specialUse` attribute
 - IMAP failure -> top-level thrown error
 
 ---

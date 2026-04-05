@@ -116,7 +116,7 @@ Sessions keyed by `mcp-session-id` header. `reply.hijack()` before passing to tr
 `server.connect(transport)` requires a cast due to MCP SDK `exactOptionalPropertyTypes` mismatch on `onclose`.
 
 ### `src/server.ts` — `createMcpServer(readOps, pool, mutOps)`
-Registers 16 tools. Called once per HTTP session. Parameters are interfaces (`ReadOnlyMailOps`, `MutatingMailOps`), not concrete classes. Tool handler pattern:
+Registers 18 tools. Called once per HTTP session. Parameters are interfaces (`ReadOnlyMailOps`, `MutatingMailOps`), not concrete classes. Tool handler pattern:
 ```typescript
 server.tool(name, description, zodRawShape, async (args) => ({
   content: [{ type: 'text', text: JSON.stringify(await handler(args, ops)) }],
@@ -145,7 +145,9 @@ LabelInfo = MailboxBase
 CreateMailboxResult  { path, created }
 CreateFolderResult = CreateMailboxResult
 CreateLabelResult   { name, created }
-DeleteFolderResult  { path }
+DeleteMailboxResult  { path, deleted }
+DeleteFolderResult = DeleteMailboxResult
+DeleteLabelResult   { name, deleted }
 
 ── Status & Wrapper Types ──
 

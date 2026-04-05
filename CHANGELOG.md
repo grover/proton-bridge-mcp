@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `delete_label` MCP tool — delete Proton Mail labels by name. Irreversible (`@IrreversibleWhen`) — clears the operation log only when the label was actually deleted. Idempotent: returns `{ deleted: false }` for non-existent labels. Verified safe in Proton Bridge source — emails are preserved. (#18)
+- `create_label` reversal enabled — `revert_operations` can now undo `create_label` by calling `deleteLabel` (#18)
+- `DeleteMailboxResult` base type — shared by `delete_folder` and `delete_label` via type aliases; `#deleteMailbox` shared IMAP helper (#18)
 - `create_label` MCP tool — create flat Proton Mail labels under `Labels/`. Validates no `/` in name, reuses shared `#createMailbox` helper for IMAP logic. Tracked as noop for reversal until `deleteLabel` is implemented (#17)
 - `CreateMailboxResult` base type — shared by `create_folder` and `create_label` via type aliases
 - `delete_folder` MCP tool — delete user-created mail folders under `Folders/`. Protected and special-use folders are rejected. Clears the operation log on success (`@Irreversible`), so no prior operations can be reverted afterward. Annotated as DESTRUCTIVE. (#15)

@@ -18,6 +18,7 @@ function createMockImap() {
     moveEmails: jest.fn(),
     setFlag: jest.fn(),
     createFolder: jest.fn(),
+    createLabel: jest.fn(),
     addLabels: jest.fn(),
     deleteFolder: jest.fn(),
     deleteEmails: jest.fn(),
@@ -268,6 +269,27 @@ describe('OperationLogInterceptor', () => {
       mock(imap.createFolder).mockResolvedValue({ path: 'Folders/Existing', created: false });
 
       await interceptor.createFolder('Folders/Existing');
+
+      const records = log.getFrom(1);
+      expect(records[0]!.reversal).toEqual({ type: 'noop' });
+    });
+  });
+
+  describe('createLabel', () => {
+    it('delegates to imap.createLabel and returns operationId', async () => {
+      mock(imap.createLabel).mockResolvedValue({ path: 'Labels/Important', created: true });
+
+      const result = await interceptor.createLabel('Important');
+
+      expect(imap.createLabel).toHaveBeenCalledWith('Important');
+      expect(result).toHaveProperty('operationId');
+      expect(log.size).toBe(1);
+    });
+
+    it('records noop reversal (deleteLabel not yet implemented)', async () => {
+      mock(imap.createLabel).mockResolvedValue({ path: 'Labels/Important', created: true });
+
+      await interceptor.createLabel('Important');
 
       const records = log.getFrom(1);
       expect(records[0]!.reversal).toEqual({ type: 'noop' });

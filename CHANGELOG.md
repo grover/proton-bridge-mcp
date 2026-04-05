@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `openWorldHint` annotations on all 18 tools — signals whether a tool interacts with external entities. Most tools are `openWorldHint: true` (email data from external senders). Maintenance tools (`verify_connectivity`, `drain_connections`) are `openWorldHint: false` (local pool ops only). New `MAINTENANCE` annotation preset. (#42)
+- Fix: `drain_connections` annotation changed from `DESTRUCTIVE` to `MAINTENANCE` (was incorrectly marked destructive)
 - `remove_labels` MCP tool — bulk-remove Proton Mail labels from emails. Uses IMAP `messageDelete()` from label folders, which Proton Bridge translates to `UnlabelMessages()` (no permanent deletion). Finds copies by Message-ID search. Tracked via `@Tracked` — revertable with `revert_operations` (re-applies labels via `addLabels`). Annotated as DESTRUCTIVE. (#20)
 - `delete_label` MCP tool — delete Proton Mail labels by name. Irreversible (`@IrreversibleWhen`) — clears the operation log only when the label was actually deleted. Idempotent: returns `{ deleted: false }` for non-existent labels. Verified safe in Proton Bridge source — emails are preserved. (#18)
 - `create_label` reversal enabled — `revert_operations` can now undo `create_label` by calling `deleteLabel` (#18)
@@ -53,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-04-04
 
 ### Added
+
+- `openWorldHint` annotations on all 18 tools — signals whether a tool interacts with external entities. Most tools are `openWorldHint: true` (email data from external senders). Maintenance tools (`verify_connectivity`, `drain_connections`) are `openWorldHint: false` (local pool ops only). New `MAINTENANCE` annotation preset. (#42)
+- Fix: `drain_connections` annotation changed from `DESTRUCTIVE` to `MAINTENANCE` (was incorrectly marked destructive)
 
 - Release workflow attaches `proton-bridge-mcp.mcpb` and source archive (`proton-bridge-mcp-X.Y.Z-source.tar.gz`) to GitHub Releases
 - npm publish on release via `NPM_TOKEN` secret; `package.json` `files` field limits tarball to `dist/`, `manifest.json`, `CHANGELOG.md`, and `LICENSE`

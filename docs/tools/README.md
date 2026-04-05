@@ -48,7 +48,7 @@ List all mail folders with detailed metadata — message counts, unread counts, 
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 | **Input** | _(none)_ |
 
 **Returns:** `FolderInfo[]`
@@ -89,7 +89,7 @@ List all Proton Mail labels with detailed metadata — message counts, unread co
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 | **Input** | _(none)_ |
 
 **Returns:** `LabelInfo[]`
@@ -125,7 +125,7 @@ List emails in a ProtonMail mailbox, newest first. Returns envelope summaries (n
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -145,7 +145,7 @@ Fetch envelope summaries for a list of known email IDs. Use this when you alread
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -163,7 +163,7 @@ Fetch full message content (text/HTML body + attachment metadata) for a list of 
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -199,7 +199,7 @@ Download a single email attachment by its IMAP part ID (obtained from `fetch_mes
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -229,7 +229,7 @@ Search for emails in a mailbox by text query. Uses IMAP `TEXT` search, which mat
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -252,7 +252,7 @@ Create a new mail folder under `Folders/`. Supports nested paths — intermediat
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -281,7 +281,7 @@ Create a new Proton Mail label. Labels are flat — names must not contain path 
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -310,7 +310,7 @@ Delete a Proton Mail label. The underlying emails remain in their original folde
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` &nbsp; `openWorldHint: true` |
 
 > **Destructive & Irreversible:** Deleting a label clears the entire operation log. No prior operations can be reverted afterward.
 
@@ -342,7 +342,7 @@ Delete a user-created mail folder. The path must be under `Folders/`. Protected 
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` &nbsp; `openWorldHint: true` |
 
 > **Destructive & Irreversible:** Deleting a folder clears the entire operation log. No prior operations can be reverted afterward.
 
@@ -374,7 +374,7 @@ Move a batch of emails to a target mailbox. Returns per-email results with sourc
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: true` &nbsp; `openWorldHint: true` |
 
 > **Destructive:** Moving an email changes its UID and mailbox. The original UID becomes invalid.
 
@@ -412,7 +412,7 @@ Mark a batch of emails as read by adding the `\Seen` IMAP flag.
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -441,7 +441,7 @@ Mark a batch of emails as unread by removing the `\Seen` IMAP flag.
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -461,7 +461,7 @@ Add one or more Proton Mail labels to a batch of emails. Each email is copied in
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: false` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: true` |
 
 **Input:**
 
@@ -555,7 +555,7 @@ Test the connection to the Proton Bridge IMAP server. Acquires a connection from
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: false` |
 | **Input** | _(none)_ |
 
 **Returns:**
@@ -584,7 +584,7 @@ Close all connections in the IMAP connection pool immediately. Useful for forcin
 
 | | |
 |---|---|
-| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` |
+| **Annotations** | `readOnlyHint: true` &nbsp; `destructiveHint: false` &nbsp; `openWorldHint: false` |
 | **Input** | _(none)_ |
 
 **Returns:**

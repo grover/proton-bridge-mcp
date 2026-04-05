@@ -31,9 +31,10 @@ function toText(data: unknown): string {
   }, 2);
 }
 
-const READ_ONLY   = { readOnlyHint: true,  destructiveHint: false } as const;
-const MUTATING    = { readOnlyHint: false, destructiveHint: false } as const;
-const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true  } as const;
+const READ_ONLY    = { readOnlyHint: true,  destructiveHint: false, openWorldHint: true  } as const;
+const MUTATING     = { readOnlyHint: false, destructiveHint: false, openWorldHint: true  } as const;
+const DESTRUCTIVE  = { readOnlyHint: false, destructiveHint: true,  openWorldHint: true  } as const;
+const MAINTENANCE  = { readOnlyHint: true,  destructiveHint: false, openWorldHint: false } as const;
 
 /**
  * Creates a new McpServer with all tools registered.
@@ -211,7 +212,7 @@ export function createMcpServer(
     {
       description: 'Test the connection to the Proton Bridge IMAP server. Returns success status and latency.',
       inputSchema: verifyConnectivitySchema,
-      annotations: READ_ONLY,
+      annotations: MAINTENANCE,
     },
     async () => ({
       content: [{ type: 'text', text: toText(await handleVerifyConnectivity(pool)) }],
@@ -223,7 +224,7 @@ export function createMcpServer(
     {
       description: 'Close all connections in the IMAP connection pool immediately. Useful for forcing reconnection after a Proton Bridge restart.',
       inputSchema: drainConnectionsSchema,
-      annotations: DESTRUCTIVE,
+      annotations: MAINTENANCE,
     },
     async () => ({
       content: [{ type: 'text', text: toText(await handleDrainConnections(pool)) }],

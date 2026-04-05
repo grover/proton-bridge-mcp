@@ -240,7 +240,7 @@ All environment variables use the `PROTONMAIL_` prefix. You can set them in a `.
 
 ## MCP Tools
 
-The server exposes 16 tools that MCP clients can call. Each tool is annotated with `readOnlyHint` or `destructiveHint` so clients can present appropriate confirmation prompts.
+The server exposes 18 tools that MCP clients can call. Each tool is annotated with `readOnlyHint`, `destructiveHint`, and `openWorldHint` so clients can present appropriate confirmation prompts and trust boundary warnings.
 
 For **full documentation** — including input schemas, return types, and example JSON — see the **[Tools Reference](docs/tools/README.md)**.
 

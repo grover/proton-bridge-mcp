@@ -177,8 +177,15 @@ server.registerTool(
 
 - `ReversalSpec` union — `@Irreversible` doesn't record reversals
 - `@Irreversible` decorator — already exists and works correctly
-- Existing `createFolder` tracking (still noop — separate concern)
 - Operation log ring buffer internals
+
+## Deviation: `createFolder` reversal now enabled
+
+With `deleteFolder` available, `createFolder` tracking was upgraded from noop to a real reversal:
+- `buildCreateFolderReversal` returns `{ type: 'create_folder', path }` when `created: true`, `null` (noop) when `created: false` (don't delete a pre-existing folder on revert)
+- `#executeReversal` for `create_folder` calls `this.#imap.deleteFolder(path)`
+- This was not in the original EDD scope but is a natural consequence of `deleteFolder` existing
+
 - `ReadOnlyMailOps` interface
 
 ## Idempotency Analysis

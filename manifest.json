@@ -1,9 +1,36 @@
 {
   "manifest_version": "0.3",
   "name": "proton-bridge-mcp",
+  "display_name": "ProtonMail Bridge MCP",
   "version": "0.2.0",
   "description": "Access your ProtonMail via MCP — bridges Claude to Proton Bridge IMAP",
-  "author": { "name": "Michael Fröhlich" },
+  "long_description": "A local MCP server that bridges ProtonMail to AI agents via the Proton Mail Bridge IMAP daemon. Provides 19 tools for reading, searching, organizing, and labeling email — with operation reversal, batch operations, and audit logging.\n\n**Key features:**\n- Read tools: list folders/labels, fetch messages, search\n- Mutating tools: create/delete folders & labels, mark read/unread, add/remove labels\n- Reversible operations via `revert_operations`\n- Per-tool annotations (`readOnlyHint`, `destructiveHint`, `openWorldHint`)\n- IMAP connection pooling and audit logging\n\nRequires a running Proton Mail Bridge instance on the local machine.",
+  "author": {
+    "name": "Michael Fröhlich",
+    "url": "https://github.com/grover"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/grover/proton-bridge-mcp"
+  },
+  "homepage": "https://github.com/grover/proton-bridge-mcp",
+  "documentation": "https://github.com/grover/proton-bridge-mcp/blob/main/docs/tools/README.md",
+  "support": "https://github.com/grover/proton-bridge-mcp/issues",
+  "icon": "assets/icon-256.png",
+  "icons": [
+    { "src": "assets/icon-16.png",  "size": "16x16" },
+    { "src": "assets/icon-32.png",  "size": "32x32" },
+    { "src": "assets/icon-64.png",  "size": "64x64" },
+    { "src": "assets/icon-256.png", "size": "256x256" }
+  ],
+  "keywords": ["protonmail", "proton-mail", "imap", "email", "mcp", "bridge", "claude", "anthropic"],
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "node": ">=25.9.0"
+    }
+  },
   "server": {
     "type": "node",
     "entry_point": "server/index.js",
@@ -23,6 +50,61 @@
       ]
     }
   },
+  "tools_generated": false,
+  "tools": [
+    { "name": "get_folders",         "description": "List all mail folders with metadata" },
+    { "name": "get_labels",          "description": "List all Proton Mail labels" },
+    { "name": "list_mailbox",        "description": "Browse emails in a mailbox with pagination" },
+    { "name": "fetch_summaries",     "description": "Fetch envelope data for known email IDs" },
+    { "name": "fetch_message",       "description": "Fetch full message body and attachment metadata" },
+    { "name": "fetch_attachment",    "description": "Download a single attachment by part ID" },
+    { "name": "search_mailbox",      "description": "Full-text IMAP search within a mailbox" },
+    { "name": "create_folder",       "description": "Create a new mail folder under Folders/" },
+    { "name": "create_label",        "description": "Create a new Proton Mail label" },
+    { "name": "delete_folder",       "description": "Delete a mail folder (irreversible — clears operation history)" },
+    { "name": "delete_label",        "description": "Delete a Proton Mail label (irreversible — clears operation history)" },
+    { "name": "move_emails",         "description": "Move a batch of emails to another mailbox" },
+    { "name": "mark_read",           "description": "Mark a batch of emails as read" },
+    { "name": "mark_unread",         "description": "Mark a batch of emails as unread" },
+    { "name": "add_labels",          "description": "Add Proton Mail labels to a batch of emails" },
+    { "name": "remove_labels",       "description": "Remove Proton Mail labels from a batch of emails" },
+    { "name": "revert_operations",   "description": "Reverse a range of tracked operations" },
+    { "name": "verify_connectivity", "description": "Test connection to Proton Bridge" },
+    { "name": "drain_connections",   "description": "Close all pooled connections" }
+  ],
+  "prompts_generated": false,
+  "prompts": [
+    {
+      "name": "summarize_inbox",
+      "description": "Summarize unread emails in your INBOX",
+      "arguments": ["count"],
+      "text": "List the ${arguments.count} most recent unread emails in my INBOX. For each, give me a one-line summary including sender and subject."
+    },
+    {
+      "name": "find_emails_from",
+      "description": "Find emails from a specific sender",
+      "arguments": ["sender"],
+      "text": "Search my inbox for all emails from ${arguments.sender} in the last 30 days. Show me the subjects and dates."
+    },
+    {
+      "name": "label_emails",
+      "description": "Apply a label to emails matching a query",
+      "arguments": ["query", "label"],
+      "text": "Find all emails matching '${arguments.query}' and apply the label '${arguments.label}'. Show me what you did and give me the operation ID so I can revert if needed."
+    },
+    {
+      "name": "cleanup_folder",
+      "description": "Review and clean up a folder",
+      "arguments": ["folder"],
+      "text": "List the emails in '${arguments.folder}'. Identify any that look like they could be deleted (newsletters, expired notifications, automated alerts). Don't delete anything yet — show me your recommendations first."
+    },
+    {
+      "name": "organize_inbox",
+      "description": "Suggest labels and folder moves to organize your inbox",
+      "arguments": ["count"],
+      "text": "Look at the ${arguments.count} most recent emails in my INBOX. Group them by topic or sender, and suggest a label or folder for each group. Don't apply anything yet — just show me your proposed organization plan."
+    }
+  ],
   "user_config": {
     "bridge_username": {
       "type": "string",
@@ -33,7 +115,7 @@
     "bridge_password": {
       "type": "string",
       "title": "Bridge Mailbox Password",
-      "description": "Bridge-generated mailbox password (from Proton Bridge app \u2192 Account \u2192 Mailbox password). NOT your ProtonMail login password.",
+      "description": "Bridge-generated mailbox password (from Proton Bridge app → Account → Mailbox password). NOT your ProtonMail login password.",
       "sensitive": true,
       "required": true
     },

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `manifest.json` enriched with full MCPB metadata: `display_name`, `long_description`, `repository`, `homepage`, `documentation`, `support`, `icons` (4 sizes — 16/32/64/256 PNG), `license`, `keywords`, `compatibility`, static `tools` declaration (all 19 tools), and 5 example `prompts`. Allows MCP clients to display capabilities, icons, and example workflows before install. (#74)
+- `package.json` enriched with `author`, `license`, `homepage`, `repository`, `bugs`, `keywords` (#74)
+- `build-mcpb.sh` now bundles `assets/icon-*.png` into the `.mcpb` package (#74)
 - `openWorldHint` annotations on all 18 tools — signals whether a tool interacts with external entities. Most tools are `openWorldHint: true` (email data from external senders). Maintenance tools (`verify_connectivity`, `drain_connections`) are `openWorldHint: false` (local pool ops only). New `MAINTENANCE` annotation preset. (#42)
 - Fix: `drain_connections` annotation changed from `DESTRUCTIVE` to `MAINTENANCE` (was incorrectly marked destructive)
 - `remove_labels` MCP tool — bulk-remove Proton Mail labels from emails. Uses IMAP `messageDelete()` from label folders, which Proton Bridge translates to `UnlabelMessages()` (no permanent deletion). Finds copies by Message-ID search. Tracked via `@Tracked` — revertable with `revert_operations` (re-applies labels via `addLabels`). Annotated as DESTRUCTIVE. (#20)

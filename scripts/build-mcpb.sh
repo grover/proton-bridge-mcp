@@ -16,6 +16,13 @@ cp -r "${REPO_ROOT}/dist/." "${STAGING}/server/"
 # Copy manifest
 cp "${REPO_ROOT}/manifest.json" "${STAGING}/"
 
+# Copy assets referenced by manifest (icons, etc.)
+mkdir -p "${STAGING}/assets"
+cp "${REPO_ROOT}/assets/icon-16.png"  "${STAGING}/assets/"
+cp "${REPO_ROOT}/assets/icon-32.png"  "${STAGING}/assets/"
+cp "${REPO_ROOT}/assets/icon-64.png"  "${STAGING}/assets/"
+cp "${REPO_ROOT}/assets/icon-256.png" "${STAGING}/assets/"
+
 # Copy production-only node_modules
 echo "Installing production dependencies into staging..."
 cp "${REPO_ROOT}/package.json" "${STAGING}/"

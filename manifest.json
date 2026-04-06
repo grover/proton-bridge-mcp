@@ -17,6 +17,7 @@
   "homepage": "https://github.com/grover/proton-bridge-mcp",
   "documentation": "https://github.com/grover/proton-bridge-mcp/blob/main/docs/tools/README.md",
   "support": "https://github.com/grover/proton-bridge-mcp/issues",
+  "icon": "assets/icon-256.png",
   "icons": [
     { "src": "assets/icon-16.png",  "size": "16x16" },
     { "src": "assets/icon-32.png",  "size": "32x32" },

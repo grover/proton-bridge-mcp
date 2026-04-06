@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/mcpb": "latest",
+    "@release-it/bumper": "^6.0.1",
     "@release-it/keep-a-changelog": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/mailparser": "^3.0.0",

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `manifest.json` version is now kept in lock-step with `package.json` during release. The release process uses `@release-it/bumper` to bump both files in the same commit. One-time fix: `manifest.json` updated from `0.1.0` → `0.2.0` to align with current `package.json`. (#71)
 - `add_labels` response no longer exposes internal `labelPath` and `newId` — returns `{ labelName, applied }` matching `remove_labels`'s clean response shape (#54)
 - `add_labels` reversal now works — calls `removeLabels` to undo labeling (previously tracked as noop). Symmetric with `remove_labels` reversal calling `addLabels`. (#54)
 - `revert_operations` now rewrites stale UIDs during chain reverts that include `move_emails` — flag reversals after a move reversal target the correct emails (#45)

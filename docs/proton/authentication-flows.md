@@ -469,6 +469,192 @@ The main implementation effort is:
 
 The CAPTCHA problem is the real blocker. Both Bridge (GUI with WebView) and web client (browser-native) have visual interfaces for solving challenges. A headless MCP server would need either a temporary browser window or a way to present the challenge to the user.
 
+## TOTP and CAPTCHA in an Agent-Coupled MCP Server
+
+An MCP server running behind an AI agent faces a unique challenge: interactive authentication steps (TOTP codes, CAPTCHAs) must be resolved without a traditional GUI, potentially during an ongoing agent conversation. The MCP protocol itself offers mechanisms for this, but the design tradeoffs are non-obvious.
+
+### When Do These Challenges Occur?
+
+Neither TOTP nor CAPTCHA is needed on every startup. Understanding the frequency matters for choosing a strategy:
+
+| Challenge | When triggered | Frequency |
+|---|---|---|
+| **TOTP** | Initial login only. Token refresh does not require 2FA. | Once — on first-ever authentication, or after session expiry/revocation. |
+| **CAPTCHA** | Proton's anti-abuse system flags the request. Triggered by: new IP, VPN, Tor, suspicious patterns, rate limiting. | Rare — may never occur for a stable home IP. Likely on first login from a new network. |
+| **Mailbox password** | Only in two-password mode (uncommon). | Once — same as TOTP. |
+
+A well-designed MCP server authenticates once, stores tokens, and refreshes them indefinitely. TOTP and CAPTCHA are **first-run problems**, not steady-state problems. This fundamentally shapes the design: the first authentication can afford to be interactive and slow.
+
+### TOTP — Straightforward in MCP
+
+TOTP is a 6-digit code from an authenticator app. The user knows the code. The challenge is routing the prompt through the agent environment to the human.
+
+**Strategy 1: MCP elicitation (recommended)**
+
+The MCP SDK supports [elicitation](https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation) — a mechanism for the server to ask the human user a question during tool execution. The server sends an `elicitation/create` request to the client, the client presents it to the user, and the response flows back.
+
+```
+Agent calls `login` tool
+  → MCP server begins SRP handshake
+  → API returns TwoFactor: 1
+  → MCP server sends elicitation: "Enter your TOTP code"
+  → MCP client prompts the human user
+  → Human enters 6-digit code
+  → MCP server completes auth with TOTP
+  → Tool returns success
+```
+
+This is the cleanest approach because it stays within the MCP protocol. The agent doesn't see the TOTP code (it goes directly between human and server). The 30-second TOTP window is tight but workable — elicitation should be fast since it's a simple text input.
+
+**Strategy 2: Two-phase tool flow**
+
+If the MCP client doesn't support elicitation, the server can use a two-tool pattern:
+
+1. `proton_login({ username, password })` → returns `{ status: 'totp_required' }`
+2. Agent sees the response, asks the human for the code
+3. `proton_login_totp({ code: '123456' })` → completes auth
+
+This has a timing problem: the agent must relay the request to the human, the human must open their authenticator, and the code must arrive within 30 seconds. In practice this works — TOTP codes are valid for the current and previous 30-second window (60 seconds effective), and the SRP session on the server side may have its own longer timeout.
+
+The risk here is that the agent sees the TOTP code in the conversation. It's a one-time code so the exposure is minimal, but it's a deviation from the elicitation approach where the code stays between human and server.
+
+**Strategy 3: Pre-authentication outside MCP**
+
+The MCP server could offer a CLI login command (`proton-bridge-mcp --login`) that handles authentication interactively before the agent ever connects. This is how Bridge works — you log in through the GUI once, then IMAP clients connect without knowing about SRP or TOTP.
+
+```bash
+$ proton-bridge-mcp --login
+Username: user@proton.me
+Password: ********
+TOTP code: 123456
+✓ Authenticated. Session stored in ~/.proton-mcp/session.enc
+$ # Now start the MCP server normally — agent connects, no auth needed
+```
+
+This is the simplest and most secure approach. The authentication flow is completely separate from the agent flow. No TOTP codes pass through the MCP protocol or the agent's context. The downside: the user must do a manual step before the agent can use the server.
+
+### CAPTCHA — The Hard Problem
+
+CAPTCHAs are fundamentally different from TOTP. A TOTP code is a number the user already has. A CAPTCHA is a visual challenge that requires rendering HTML/JavaScript in a browser context and human interaction with it.
+
+Proton's CAPTCHA flow works like this:
+
+1. API returns `HUMAN_VERIFICATION_REQUIRED` with methods: `["captcha"]`
+2. Client renders Proton's CAPTCHA page (an iframe/WebView pointing to a Proton URL)
+3. Human solves the challenge
+4. Client receives a verification token
+5. Client retries the original request with `X-PM-Human-Verification-Token` header
+
+The challenge requires a **browser environment**. It's not a simple image — it's an interactive web page with JavaScript. This means none of the pure-MCP strategies for TOTP work directly.
+
+**Strategy 1: Spawn a local browser (pragmatic)**
+
+```
+API returns HUMAN_VERIFICATION_REQUIRED
+  → MCP server starts a local HTTP server on a random port
+  → MCP server opens the user's browser to localhost:PORT/verify
+  → Page loads Proton's CAPTCHA in an iframe
+  → Human solves it
+  → Page posts token back to localhost:PORT/callback
+  → MCP server captures token, retries API call
+  → MCP server shuts down local HTTP server
+```
+
+This is essentially what Bridge does (with a WebView instead of a browser). The MCP server can notify the agent "waiting for human verification in browser" via the tool response, and the agent can relay this to the user.
+
+The user experience: a browser tab opens, they solve a CAPTCHA, the tab closes, and the agent continues. Awkward but workable.
+
+**Strategy 2: Elicitation with URL**
+
+If the MCP client supports elicitation, the server can send the CAPTCHA URL to the user:
+
+```
+MCP server sends elicitation:
+  "Proton requires human verification. Please open this URL in your 
+   browser, solve the challenge, and paste the token here:
+   https://verify.proton.me/captcha?token=xyz..."
+```
+
+This is fragile — the user would need to extract a token from the browser's network traffic or a callback URL, which is unreasonable for most users. Not recommended.
+
+**Strategy 3: Avoid CAPTCHAs entirely**
+
+The most practical strategy is to minimize CAPTCHA triggers:
+
+- **Authenticate through Bridge first**: If the user already has Bridge running and authenticated, the MCP server can piggyback on that session (Option C from the adaptation strategies). Bridge already solved any CAPTCHAs.
+- **Stable IP**: CAPTCHAs are triggered by suspicious network patterns. A stable home/office IP rarely triggers them.
+- **Pre-authenticate via CLI**: Run `--login` from the same network the server will run on. If a CAPTCHA appears during CLI login, spawn a browser then. Subsequent token refreshes don't trigger CAPTCHAs.
+- **Proton's alternative verification methods**: The API may offer email or SMS verification as alternatives to CAPTCHA. These can be handled via elicitation ("Enter the code sent to your email").
+
+**Strategy 4: Multimodal agent solves the CAPTCHA**
+
+A multimodal LLM with vision capabilities could theoretically render and solve a visual CAPTCHA. The MCP server could return the CAPTCHA as an image resource, and the agent could interpret and respond.
+
+This is a **terrible idea** for several reasons:
+- It's adversarial to Proton's anti-abuse system — they use CAPTCHAs to verify humans, and having an AI solve them defeats the purpose
+- Modern CAPTCHAs (reCAPTCHA v3, hCaptcha) use behavioral analysis, not just image recognition — they can't be solved by looking at an image
+- Proton could detect automated solving and permanently flag the account
+- It may violate Proton's Terms of Service
+
+Don't do this.
+
+### Recommended Design for MCP Server Auth
+
+```
+┌──────────────────────────────────────────────────────┐
+│                  First Run (interactive)               │
+│                                                        │
+│  $ proton-bridge-mcp --login                          │
+│    ├── SRP handshake                                  │
+│    ├── TOTP prompt (CLI stdin)                        │
+│    ├── CAPTCHA (spawn browser if triggered)           │
+│    ├── Mailbox password (CLI stdin, if two-pass mode) │
+│    ├── Decrypt keys, verify                           │
+│    └── Store session: ~/.proton-mcp/session.enc       │
+│         { AuthUID, RefreshToken, KeyPass }             │
+│                                                        │
+├──────────────────────────────────────────────────────┤
+│                  Steady State (headless)               │
+│                                                        │
+│  MCP server starts                                    │
+│    ├── Load session from disk                         │
+│    ├── Refresh token (no TOTP, no CAPTCHA)            │
+│    ├── Decrypt keys with stored KeyPass               │
+│    └── API ready — agent connects                     │
+│                                                        │
+│  If refresh token is revoked (rare):                  │
+│    ├── Tool calls return AUTH_REQUIRED error           │
+│    ├── Agent tells user: "run --login again"          │
+│    └── Back to First Run                              │
+│                                                        │
+├──────────────────────────────────────────────────────┤
+│                  Session Refresh (automatic)           │
+│                                                        │
+│  On 401 during tool execution:                        │
+│    ├── Refresh token automatically                    │
+│    ├── Retry original request                         │
+│    ├── Update stored RefreshToken                     │
+│    └── Transparent to agent                           │
+│                                                        │
+│  If refresh fails:                                    │
+│    └── Same as "refresh token revoked" above          │
+└──────────────────────────────────────────────────────┘
+```
+
+This design separates the interactive authentication (which needs human input for TOTP/CAPTCHA) from the headless operation (which only needs token refresh). The agent never encounters authentication challenges during normal use.
+
+The `--login` CLI command is analogous to Bridge's login GUI — it's a one-time setup step. Just as IMAP clients authenticate with BridgePass without knowing about SRP, the agent uses MCP tools without knowing about Proton authentication. The MCP server is the abstraction boundary.
+
+### Edge Case: Session Expires Mid-Conversation
+
+If the refresh token is revoked while the agent is mid-conversation (Proton account password changed, manual session revocation, etc.), the MCP server must fail gracefully:
+
+1. Tool call fails with a clear error: `AUTH_SESSION_EXPIRED`
+2. Agent sees the error and tells the user: "Your Proton session has expired. Please re-authenticate by running `proton-bridge-mcp --login`."
+3. After re-auth, the agent can resume
+
+This is preferable to attempting interactive re-authentication mid-conversation — the agent environment may not support elicitation, the TOTP code has a short window, and mixing authentication prompts into an email management conversation is confusing.
+
 ## Complete Auth Flow Comparison
 
 | Step | Web Client | Bridge | MCP Server (proposed) |

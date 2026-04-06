@@ -151,3 +151,4 @@ audit.jsonl
 # MCPB build artifacts
 *.mcpb
 .mcpb-staging/
+.DS_Store

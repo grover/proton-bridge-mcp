@@ -655,6 +655,164 @@ If the refresh token is revoked while the agent is mid-conversation (Proton acco
 
 This is preferable to attempting interactive re-authentication mid-conversation — the agent environment may not support elicitation, the TOTP code has a short window, and mixing authentication prompts into an email management conversation is confusing.
 
+## Porting Evaluation: go-proton-api to TypeScript vs MCP Server to Go
+
+Two migration paths exist. Both eliminate the IMAP middleman. The question is which language the MCP server should live in.
+
+### Path 1: Port go-proton-api to TypeScript
+
+**What it is:** Translate Proton's Go API client library into TypeScript so the existing TypeScript MCP server can call the Proton REST API directly instead of going through Bridge IMAP.
+
+**Scope of go-proton-api:**
+
+The Bridge uses ~19 distinct API methods on `proton.Client` and references 154+ types/constants from the proton package. The library handles:
+
+- SRP authentication (delegates to `go-srp`)
+- Session management (token refresh, auth handlers)
+- PGP encryption/decryption (delegates to `gopenpgp`)
+- REST API calls (messages, labels, conversations, attachments, settings, events)
+- Error handling (API error codes, human verification)
+
+**Dependency chain (all GPL):**
+```
+go-proton-api (GPL)
+├── go-srp v0.0.7 (GPL)
+├── gopenpgp v2.9.0-proton (GPL)
+│   └── go-crypto v1.3.0-proton (GPL)
+└── stdlib (net/http, crypto, etc.)
+```
+
+**Assessment:**
+
+| Factor | Rating | Notes |
+|---|---|---|
+| **Size** | Large | 19+ API methods, 154+ types, plus SRP + crypto. Not a weekend project. |
+| **Crypto porting** | Hard | `gopenpgp` wraps Go's `crypto/openpgp` fork with Proton-specific patches. TypeScript equivalent exists (`@protontech/pmcrypto` + `@protontech/openpgp`) but the API surfaces differ significantly. |
+| **SRP porting** | Unnecessary | `@proton/srp` (TypeScript, MIT) already exists and is production-quality. No need to port `go-srp`. |
+| **License** | Blocker | go-proton-api is GPL. A port is a derivative work — the TypeScript version would also be GPL. This contaminates the MCP server if linked. |
+| **API surface match** | Poor | go-proton-api is designed for Go idioms (context.Context, io.Reader streams, goroutine-safe methods). A direct port would feel alien in TypeScript. A clean-room TypeScript client using the WebClients API definitions (which are just `{ method, url, data }` objects) would be more natural. |
+| **Maintenance** | Unsustainable | Proton updates go-proton-api for Bridge releases. A forked TypeScript port would drift immediately. No automated way to keep in sync. |
+| **Claude feasibility** | Medium | Claude can translate Go to TypeScript mechanically, but the crypto integration requires deep understanding of OpenPGP key handling, armored message formats, and Proton's proprietary extensions. Automated translation would produce compiling code that fails on edge cases. |
+
+**Verdict: Don't port go-proton-api.** Instead, build a TypeScript API client from scratch using the WebClients endpoint definitions (MIT for `@proton/srp` and `@proton/crypto`, clean-room for the GPL glue). See [webclient-api-extraction.md](webclient-api-extraction.md) for that analysis.
+
+### Path 2: Migrate the MCP Server from TypeScript to Go
+
+**What it is:** Rewrite the MCP server in Go, replacing the IMAP layer with direct `go-proton-api` calls. The server becomes architecturally similar to Bridge itself — a Go process that authenticates to the Proton API, manages keys, and exposes MCP tools.
+
+**Current TypeScript codebase:**
+
+| Component | Lines | Go equivalent |
+|---|---|---|
+| Production code | 2,903 | ~3,500-4,000 (Go is more verbose) |
+| Test code | 2,580 | ~3,000 |
+| IMAP client (`imap.ts`) | 655 | **Eliminated entirely** — replaced by `proton.Client` method calls |
+| Connection pool (`pool.ts`) | 312 | **Eliminated** — go-proton-api manages its own HTTP client |
+| Operation log + interceptor | 364 | ~400 (similar logic, no decorators) |
+| Tool handlers (18 tools) | ~300 | ~350 |
+| Server setup + transports | ~470 | ~500 (Go MCP SDK + net/http) |
+| Types | 380 | **Mostly eliminated** — use `proton` package types directly |
+| Config + logging | 186 | ~200 |
+
+**What gets eliminated by switching from IMAP to go-proton-api:**
+
+| Current IMAP complexity | Replaced by |
+|---|---|
+| `ImapClient` (655 lines of IMAP protocol) | Direct `proton.Client.LabelMessages()`, `GetMessage()`, etc. |
+| Connection pool (312 lines) | go-proton-api's internal HTTP client |
+| `isAlreadyExistsError` + LIST fallback | API returns structured errors with codes |
+| COPYUID parsing for label copies | Not needed — API works with MessageIDs, not UIDs |
+| Message-ID search for `remove_labels` | `proton.Client.UnlabelMessages(messageIDs, labelID)` — one call |
+| UID rewriting chain in revert | Not needed — MessageIDs are stable across label changes |
+| `Labels/` path devirtualization | Not needed — labels are native label IDs |
+| `mailparser` for MIME parsing | `proton.Client.GetFullMessage()` returns structured data |
+| `imapflow` dependency | Eliminated |
+
+**What gets added:**
+
+| New responsibility | Complexity |
+|---|---|
+| SRP authentication | Handled by go-proton-api — zero code |
+| Token storage + refresh | ~100 lines (encrypted vault, similar to Bridge) |
+| PGP decryption of message bodies | `gopenpgp` library — but Bridge already does this, patterns exist |
+| Key management (salt, decrypt private keys) | ~50 lines (copy Bridge's pattern from `user.go`) |
+| TOTP + CAPTCHA handling | ~150 lines (CLI prompt + browser spawn, as discussed above) |
+| Event polling for real-time sync (optional) | ~200 lines if needed, skip for v1 |
+
+**Go MCP SDK:** An official Go SDK exists at `github.com/modelcontextprotocol/go-sdk` (maintained with Google). It supports stdio, SSE, and HTTP transports.
+
+**Go library equivalents:**
+
+| TypeScript dependency | Go equivalent |
+|---|---|
+| `@modelcontextprotocol/sdk` | `github.com/modelcontextprotocol/go-sdk` |
+| `imapflow` | **Eliminated** — direct API |
+| `mailparser` | **Eliminated** — structured API responses |
+| `fastify` | `net/http` (stdlib) |
+| `pino` | `github.com/sirupsen/logrus` or `log/slog` (stdlib) |
+| `commander` | `github.com/spf13/cobra` |
+| `zod` | `go-playground/validator` or manual |
+| `selfsigned` | `crypto/x509` (stdlib) |
+
+**Assessment:**
+
+| Factor | Rating | Notes |
+|---|---|---|
+| **Net code reduction** | Significant | ~1,000 lines of IMAP plumbing eliminated. Types reused from go-proton-api. Total Go codebase would be ~2,000-2,500 lines (smaller than current TypeScript). |
+| **Architectural simplification** | Major | No IMAP virtualization/devirtualization. Labels are labels. UIDs are MessageIDs. No COPYUID. No Message-ID search. The entire [label-handling.md](../impl/label-handling.md) design doc becomes irrelevant. |
+| **Label operations** | Trivial | `add_labels` = `client.LabelMessages(ids, labelID)`. `remove_labels` = `client.UnlabelMessages(ids, labelID)`. No copy resolution, no two-phase lookup. |
+| **Authentication** | Free | go-proton-api handles SRP, token refresh, 2FA. Bridge's `LoginFull` is a 50-line function. |
+| **Crypto** | Comes with | `gopenpgp` is already a go-proton-api dependency. Key decryption follows Bridge's exact pattern. |
+| **License** | GPL (same as now) | go-proton-api is GPL, making the Go MCP server GPL too. But proton-bridge is already GPL, so this matches the ecosystem. If you want non-GPL, neither path works — you'd need the TypeScript clean-room approach. |
+| **Deployment** | Better | Single static binary. No Node.js runtime. No `node_modules`. Cross-compile for any OS. |
+| **Bridge dependency** | Eliminated | The MCP server becomes a standalone Proton client. Bridge is no longer needed at all. |
+| **Claude feasibility** | High | 2,903 lines of well-structured TypeScript with clear interfaces. Go has direct equivalents for every pattern except decorators (which become wrapper functions). The IMAP layer doesn't need translation — it's deleted. Claude would need ~3-5 sessions to port the core, with the main risk being the Go MCP SDK integration (newer library, less training data). |
+| **Test porting** | Medium | 2,580 lines of Jest tests. Go's `testing` package + `testify` assertions. The IMAP mock layer is eliminated; replaced by go-proton-api's built-in fake server (`go-proton-api/server.Server`), which is what Bridge uses for its own tests. |
+| **Development velocity** | Slower initially | Go's type system is simpler but more verbose. No union types, no generics on interfaces (limited generics). Error handling is explicit (`if err != nil`). Build-test cycle is fast though. |
+
+**What Bridge already solved that you'd reuse:**
+
+The Bridge codebase at `~/Projects/proton-bridge` is a reference implementation for everything the Go MCP server needs:
+
+| Concern | Bridge file to reference | Lines |
+|---|---|---|
+| Login + 2FA + key unlock | `internal/bridge/user.go` (LoginFull) | ~120 |
+| Token refresh | `internal/bridge/user.go` (loadUser) | ~35 |
+| Encrypted vault | `internal/vault/` | ~500 |
+| Label operations | `internal/services/imapservice/connector.go` | ~200 |
+| Message fetching | `internal/services/imapservice/connector.go` | ~100 |
+| Flag management | `internal/services/imapservice/connector.go` | ~30 |
+| Event polling | `internal/services/imapservice/service_message_events.go` | ~300 |
+
+You wouldn't copy Bridge code (different architecture), but the patterns for "how to use go-proton-api correctly" are all there.
+
+### Comparison: Both Paths
+
+| Dimension | Port go-proton-api to TS | Migrate MCP server to Go |
+|---|---|---|
+| **Eliminates IMAP** | Yes | Yes |
+| **Eliminates Bridge dependency** | Yes | Yes |
+| **License** | GPL (derivative of go-proton-api) or clean-room (hard) | GPL (uses go-proton-api directly) |
+| **Crypto** | Must adapt @proton/crypto for Node.js (Web Workers) | gopenpgp works natively in Go |
+| **Auth** | Must port SRP glue (~130 lines clean-room) | go-proton-api handles everything |
+| **Reference implementation** | WebClients (TypeScript, but GPL shared) | Bridge (Go, GPL, exact same library) |
+| **Net effort** | ~8-10 days (see [webclient-api-extraction.md](webclient-api-extraction.md)) | ~10-15 days (full rewrite but simpler architecture) |
+| **Maintenance burden** | High — custom TS API client must track Proton API changes | Low — go-proton-api is maintained by Proton |
+| **Risk** | Medium — crypto adaptation, no reference Go→TS port exists | Low — Bridge proves the patterns work |
+| **Claude assist quality** | Medium — crypto edge cases, Web Worker adaptation | High — straightforward Go, Bridge as reference |
+
+### Recommendation
+
+**If you're going to eliminate IMAP, migrate to Go.** The numbers are close on effort, but Go wins on every qualitative dimension:
+
+1. **go-proton-api is the canonical client** — maintained by Proton, used by Bridge in production. A TypeScript API client would be a second-class citizen maintained by you.
+2. **Crypto just works** — `gopenpgp` is native Go. No Web Worker adaptation, no `comlink`, no Node.js crypto quirks.
+3. **Bridge is the reference implementation** — every pattern you need exists in `~/Projects/proton-bridge`, in the same language, using the same library.
+4. **The IMAP layer disappears** — this isn't a 1:1 rewrite. ~1,000 lines of IMAP plumbing, the connection pool, UID mapping, label devirtualization, and COPYUID resolution all vanish. The Go version would be architecturally simpler than the TypeScript version.
+5. **Single binary deployment** — `go build` produces one executable. No Node.js, no `node_modules`, no `npm install`.
+
+The main cost is the language switch. If you're not comfortable in Go, the ramp-up time is real. But the TypeScript path has its own ramp-up: adapting `@proton/crypto` for Node.js, clean-rooming the GPL glue code, and building a custom API client that Proton doesn't maintain.
+
 ## Complete Auth Flow Comparison
 
 | Step | Web Client | Bridge | MCP Server (proposed) |

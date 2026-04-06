@@ -314,6 +314,7 @@ Required status checks to configure in GitHub branch protection: **Lint**, **Bui
    - Runs `lint` + `build` (pre-flight guard)
    - Moves `[Unreleased]` → `[x.y.z]` in `CHANGELOG.md`
    - Bumps `package.json` version
+   - Bumps `manifest.json` `version` field via `@release-it/bumper` plugin (kept in lock-step with `package.json`)
    - Commits `chore: release vX.Y.Z` and pushes tag
 3. `release.yml` fires on the tag → builds → creates GitHub Release with:
    - `proton-bridge-mcp.mcpb` — Claude Desktop package

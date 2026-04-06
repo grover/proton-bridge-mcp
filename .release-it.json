@@ -20,6 +20,12 @@
       "addUnreleased": true,
       "addVersionUrl": true,
       "versionUrlBuilder": "github"
+    },
+    "@release-it/bumper": {
+      "out": {
+        "file": "manifest.json",
+        "path": "version"
+      }
     }
   },
   "hooks": {

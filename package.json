@@ -4,6 +4,17 @@
   "description": "MCP server bridging ProtonMail via Proton Bridge IMAP",
   "type": "module",
   "main": "./dist/index.js",
+  "author": "Michael Fröhlich",
+  "license": "MIT",
+  "homepage": "https://github.com/grover/proton-bridge-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/grover/proton-bridge-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/grover/proton-bridge-mcp/issues"
+  },
+  "keywords": ["protonmail", "proton-mail", "imap", "email", "mcp", "bridge", "claude", "anthropic"],
   "engines": {
     "node": ">=25.9.0"
   },
@@ -13,6 +24,10 @@
   "files": [
     "dist",
     "manifest.json",
+    "assets/icon-16.png",
+    "assets/icon-32.png",
+    "assets/icon-64.png",
+    "assets/icon-256.png",
     "CHANGELOG.md",
     "LICENSE"
   ],

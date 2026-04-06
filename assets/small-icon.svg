@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none">
+  <defs>
+    <!-- Proton Mail icon gradients (identical to icon.svg / logo.svg) -->
+    <linearGradient id="pm0" x1="13.509" y1="24.7672" x2="1.43523" y2="-17.1751" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3D9FF"/>
+      <stop offset="1" stop-color="#7341FF"/>
+    </linearGradient>
+    <radialGradient id="pm1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(30.7227 11.8138) scale(35.9848 33.9185)">
+      <stop offset="0.5561" stop-color="#6D4AFF"/>
+      <stop offset="0.9944" stop-color="#AA8EFF"/>
+    </radialGradient>
+    <linearGradient id="pm2" x1="47.6423" y1="50.957" x2="19.8702" y2="-8.95322" gradientUnits="userSpaceOnUse">
+      <stop offset="0.271" stop-color="#E3D9FF"/>
+      <stop offset="1" stop-color="#7341FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- === Proton Mail glyph (same placement as icon.svg, scaled to 16x16 space) === -->
+  <!-- icon.svg uses translate(2 4) scale(1.444) in 64-unit space; here divided by 4 -->
+  <g transform="translate(0.5 1) scale(0.361)">
+    <path fill-rule="evenodd" clip-rule="evenodd"
+          d="M22.8601 13.464L22.8621 13.4656L12.8571 24.5714L0 10.4194V4.31488C0 3.61388 0.817029 3.23035 1.35631 3.67821L15.6207 15.5242C17.0001 16.6697 18.9999 16.6697 20.3793 15.5242L22.8601 13.464Z"
+          fill="url(#pm0)"/>
+    <path d="M28.2857 8.95834L22.8601 13.4641L22.8621 13.4657L15.6784 19.8113C14.4546 20.8923 12.6255 20.9196 11.3701 19.8755L0 10.4195V28.5617C0 30.6185 1.66735 32.2858 3.72414 32.2858H28.2857L30.8571 20.6221L28.2857 8.95834Z"
+          fill="url(#pm1)"/>
+    <path fill-rule="evenodd" clip-rule="evenodd"
+          d="M28.2857 8.96285V32.2857L32.2758 32.2857C34.3326 32.2857 36 30.6182 36 28.5616V4.3149C36 3.6139 35.1829 3.23031 34.6437 3.67825L28.2857 8.96285Z"
+          fill="url(#pm2)"/>
+  </g>
+
+  <!-- === White plug overlay (~1.25x base, no badge background) === -->
+  <!-- Plug bbox ~6.5x6.5 in the lower-right corner, centered at (12.25, 12.25) -->
+  <g fill="#ffffff">
+    <!-- Two prongs -->
+    <rect x="10" y="9" width="1.25" height="1.5" rx="0.25"/>
+    <rect x="13.25" y="9" width="1.25" height="1.5" rx="0.25"/>
+    <!-- Plug body -->
+    <rect x="9" y="10.5" width="6.5" height="4" rx="0.8"/>
+    <!-- Cable stub -->
+    <rect x="11.625" y="14.5" width="1.25" height="1"/>
+  </g>
+</svg>

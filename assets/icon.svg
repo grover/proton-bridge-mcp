@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <defs>
+    <!-- Proton Mail icon gradients (from official asset, identical to logo.svg) -->
+    <linearGradient id="pm0" x1="13.509" y1="24.7672" x2="1.43523" y2="-17.1751" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3D9FF"/>
+      <stop offset="1" stop-color="#7341FF"/>
+    </linearGradient>
+    <radialGradient id="pm1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(30.7227 11.8138) scale(35.9848 33.9185)">
+      <stop offset="0.5561" stop-color="#6D4AFF"/>
+      <stop offset="0.9944" stop-color="#AA8EFF"/>
+    </radialGradient>
+    <linearGradient id="pm2" x1="47.6423" y1="50.957" x2="19.8702" y2="-8.95322" gradientUnits="userSpaceOnUse">
+      <stop offset="0.271" stop-color="#E3D9FF"/>
+      <stop offset="1" stop-color="#7341FF"/>
+    </linearGradient>
+    <linearGradient id="mcpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6D4AFF"/>
+      <stop offset="100%" stop-color="#AA8EFF"/>
+    </linearGradient>
+    <!-- Darker gradient for the MCP badge so it stays distinct from the envelope -->
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3A1F8A"/>
+      <stop offset="100%" stop-color="#6D4AFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- === Proton Mail glyph (dominant, upper-left bias) === -->
+  <!-- Source paths are 36x36; scale 1.444 -> ~52x52, translated to (2,4) -->
+  <g transform="translate(2 4) scale(1.444)">
+    <path fill-rule="evenodd" clip-rule="evenodd"
+          d="M22.8601 13.464L22.8621 13.4656L12.8571 24.5714L0 10.4194V4.31488C0 3.61388 0.817029 3.23035 1.35631 3.67821L15.6207 15.5242C17.0001 16.6697 18.9999 16.6697 20.3793 15.5242L22.8601 13.464Z"
+          fill="url(#pm0)"/>
+    <path d="M28.2857 8.95834L22.8601 13.4641L22.8621 13.4657L15.6784 19.8113C14.4546 20.8923 12.6255 20.9196 11.3701 19.8755L0 10.4195V28.5617C0 30.6185 1.66735 32.2858 3.72414 32.2858H28.2857L30.8571 20.6221L28.2857 8.95834Z"
+          fill="url(#pm1)"/>
+    <path fill-rule="evenodd" clip-rule="evenodd"
+          d="M28.2857 8.96285V32.2857L32.2758 32.2857C34.3326 32.2857 36 30.6182 36 28.5616V4.3149C36 3.6139 35.1829 3.23031 34.6437 3.67825L28.2857 8.96285Z"
+          fill="url(#pm2)"/>
+  </g>
+
+  <!-- === MCP badge: bold electrical plug (bottom-right corner) === -->
+  <!-- Dark halo: deep purple rect slightly larger than the badge body -->
+  <rect x="33.5" y="33.5" width="29" height="29" rx="7.5" fill="#1A0A4A"/>
+  <!-- Badge body with darker gradient -->
+  <rect x="35.5" y="35.5" width="25" height="25" rx="6" fill="url(#badgeGrad)"/>
+
+  <!-- Bold electrical plug, white on purple, vertically centered in the badge -->
+  <g fill="#ffffff">
+    <!-- Two prongs sticking up from the top of the plug body -->
+    <rect x="42.3" y="37.9" width="3.3" height="5.5" rx="0.7"/>
+    <rect x="50.3" y="37.9" width="3.3" height="5.5" rx="0.7"/>
+    <!-- Plug body: chunky rounded rect -->
+    <rect x="39.2" y="42.7" width="17.6" height="12.1" rx="2.2"/>
+    <!-- Cable stub -->
+    <rect x="46.35" y="54.8" width="3.3" height="3.3"/>
+  </g>
+</svg>
